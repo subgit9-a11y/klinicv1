@@ -48,4 +48,17 @@ class UserFactory extends Factory
     {
         return $this->state(fn (array $attributes) => ['role' => $role]);
     }
+
+    public function forTenant(\App\Models\Tenant $tenant): static
+    {
+        return $this->state(fn (array $attributes) => ['tenant_id' => $tenant->id]);
+    }
+
+    public function superAdmin(): static
+    {
+        return $this->state(fn (array $attributes) => [
+            'tenant_id' => null,
+            'role' => 'SUPER_ADMIN',
+        ]);
+    }
 }

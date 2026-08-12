@@ -15,6 +15,9 @@ class PatientFactory extends Factory
         $gender = fake()->randomElement(['MALE', 'FEMALE', 'OTHER']);
 
         return [
+            // tenant_id is force-stamped by BelongsToTenant from TenantContext
+            // when a tenant is active; left null here so the trait populates it.
+            'tenant_id' => app(\App\Services\Tenancy\TenantContext::class)->id(),
             'k360_uid' => 'K360-P-'.str_pad((string) fake()->unique()->randomNumber(7), 10, '0', STR_PAD_LEFT),
             'first_name' => fake()->firstName($gender === 'OTHER' ? null : strtolower($gender)),
             'last_name' => fake()->lastName(),

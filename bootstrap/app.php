@@ -2,6 +2,7 @@
 
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RequireTwoFactorChallenge;
+use App\Http\Middleware\SetTenantContext;
 use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
@@ -19,6 +20,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'verified' => EnsureEmailIsVerified::class,
             'active' => EnsureAccountIsActive::class,
             '2fa' => RequireTwoFactorChallenge::class,
+            'tenant' => SetTenantContext::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
