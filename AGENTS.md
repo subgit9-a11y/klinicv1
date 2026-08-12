@@ -52,6 +52,20 @@ Brand teal: primary `#1f9482` (brand-500), dark `#167669` (brand-600). See `reso
 ## V1 Boundary
 No pharmacy/medicine ordering/delivery. No commission on treatment revenue. Cashfree only for online consultation payments + SaaS subscription. Clinic-side payments: CASH/UPI/CARD/BANK_TRANSFER/CHEQUE/OTHER.
 
+## Phase 3 — Authentication (COMPLETED)
+- Livewire components in `app/Livewire/Auth/` (Login, ForgotPassword, ResetPassword, TwoFactorChallenge, VerifyEmail) + `app/Livewire/Profile/Profile.php`.
+- `app/Services/Auth/TwoFactorService.php` — Google2FA + Bacon QR. **Must strip the `<?xml ...?>` prolog** from inline SVG (done) so it embeds cleanly in Blade + Livewire morphdom (the prolog blanks the page on re-render).
+- Middleware: `app/Http/Middleware/EnsureAccountIsActive.php`, `RequireTwoFactorChallenge.php`. Registered in `bootstrap/app.php`.
+- All Livewire component Blade views MUST have a single root `<div>` (MultipleRoot Elements exception otherwise).
+- In Livewire components use `session()->regenerate()`, NOT `request()->session()->regenerate()`.
+- Sidebar uses `@if(Route::has($item['route']))` guards so not-yet-defined routes don't fatal the layout.
+- AdminUserSeeder seeds Super Admin (superadmin@klinic360.test). `DatabaseSeeder` runs PlanSeeder + SystemSettingsSeeder + AdminUserSeeder.
+- Tests: `tests/Feature/Auth/AuthenticationTest.php` — 17 tests. Total suite 19 pass / 53 assertions. Run with `php artisan test`.
+
+### Environment gotcha
+The PHP runtime is NOT preinstalled in this container. If `php` is missing (command not found), install via apt:
+`sudo apt-get install -y php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql php8.4-zip php8.4-gd php8.4-bcmath php8.4-intl php8.4-sqlite3 php8.4-readline`. Composer also missing — install from getcomposer.org to `/usr/local/bin/composer`. Dev DB is SQLite (file), APP_KEY already set in `.env`.
+
 ## Phase 2 — Database Design (COMPLETED)
 - 11 migration files creating ~75 tables, all migrate cleanly on SQLite.
 - Migration naming: `2025_01_02_0000XX_create_<domain>_tables.php` grouped by domain.
