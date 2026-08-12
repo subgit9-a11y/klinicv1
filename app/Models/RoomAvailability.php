@@ -10,6 +10,8 @@ class RoomAvailability extends Model
 {
     use BelongsToTenant;
 
+    protected $table = 'room_availability';
+
     protected $fillable = [
         'tenant_id', 'treatment_room_id', 'date', 'start_time', 'end_time', 'is_available',
     ];

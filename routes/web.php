@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\DashboardController;
+use App\Livewire\Appointments\AppointmentBoard;
 use App\Livewire\Patients\Patient360;
 use App\Livewire\Patients\PatientEdit;
 use App\Livewire\Patients\PatientList;
@@ -18,6 +19,8 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
     Route::get('/patients', PatientList::class)->name('patients.index');
     Route::get('/patients/{patient}/edit', PatientEdit::class)->name('patients.edit');
     Route::get('/patients/{patient}', Patient360::class)->name('patients.show');
+
+    Route::get('/appointments', AppointmentBoard::class)->name('appointments.index');
 });
 
 require __DIR__.'/auth.php';

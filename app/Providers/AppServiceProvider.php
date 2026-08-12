@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\User;
+use App\Services\Appointments\AppointmentService;
 use App\Services\Auth\PermissionService;
 use App\Services\Auth\TwoFactorService;
 use App\Services\Patients\PatientService;
@@ -20,6 +21,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PermissionService::class);
         $this->app->singleton(PatientUidService::class);
         $this->app->singleton(PatientService::class);
+        $this->app->singleton(AppointmentService::class);
 
         $this->app->singleton(TwoFactorService::class, function ($app) {
             return new TwoFactorService(

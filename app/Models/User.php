@@ -38,6 +38,21 @@ class User extends Authenticatable implements MustVerifyEmail
         return $this->belongsTo(Tenant::class);
     }
 
+    public function availability()
+    {
+        return $this->hasMany(DoctorAvailability::class, 'user_id');
+    }
+
+    public function appointmentsAsDoctor()
+    {
+        return $this->hasMany(Appointment::class, 'user_id');
+    }
+
+    public function appointmentsCreatedBy()
+    {
+        return $this->hasMany(Appointment::class, 'created_by');
+    }
+
     public function isSuperAdmin(): bool
     {
         return $this->role === 'SUPER_ADMIN';

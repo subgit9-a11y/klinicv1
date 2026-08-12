@@ -10,6 +10,8 @@ class TherapistAvailability extends Model
 {
     use BelongsToTenant;
 
+    protected $table = 'therapist_availability';
+
     protected $fillable = [
         'tenant_id', 'therapist_id', 'day_of_week', 'start_time', 'end_time', 'is_active',
     ];
