@@ -1,0 +1,26 @@
+@import 'tailwindcss';
+
+@source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
+@source '../../storage/framework/views/*.php';
+@source '../../app/Livewire/**/*.php';
+
+@theme {
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
+        'Segoe UI Symbol', 'Noto Color Emoji';
+
+    /* Klinic 360 brand palette */
+    --color-brand-50: #eef9f6;
+    --color-brand-100: #d6f1e9;
+    --color-brand-200: #aee3d4;
+    --color-brand-300: #79ceba;
+    --color-brand-400: #41b09c;
+    --color-brand-500: #1f9482;
+    --color-brand-600: #167669;
+    --color-brand-700: #135f55;
+    --color-brand-800: #134c45;
+    --color-brand-900: #133f3a;
+}
+
+[x-cloak] {
+    display: none !important;
+}
