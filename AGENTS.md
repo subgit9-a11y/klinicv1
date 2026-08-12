@@ -66,6 +66,23 @@ No pharmacy/medicine ordering/delivery. No commission on treatment revenue. Cash
 The PHP runtime is NOT preinstalled in this container. If `php` is missing (command not found), install via apt:
 `sudo apt-get install -y php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql php8.4-zip php8.4-gd php8.4-bcmath php8.4-intl php8.4-sqlite3 php8.4-readline`. Composer also missing — install from getcomposer.org to `/usr/local/bin/composer`. Dev DB is SQLite (file), APP_KEY already set in `.env`.
 
+## Phase 5 — RBAC (COMPLETED)
+- `app/Services/Auth/Permissions.php` — granular permission catalog grouped by module (patients, appointments, consultations, prescriptions, treatments, ipd, billing, ai, documents). Dotted keys like `patients.view`.
+- `app/Services/Auth/RolePermissions.php` — default grant per role (SUPER_ADMIN bypassed; CLINIC_OWNER=all; DOCTOR/RECEPTIONIST/THERAPIST/NURSE/IPD_STAFF/ASSISTANT scoped).
+- `app/Services/Auth/PermissionService.php` — `can()/canAny()/canAll()/forUser()`. Resolution: SUPER_ADMIN→all; else role defaults ∪ user `permissions` grants − revokes. User.permissions stored as `{grants:[], revokes:[]}`.
+- Gate::before in AppServiceProvider routes dotted abilities to PermissionService (returns explicit bool = grant/deny; non-dotted → null → defer to Policies).
+- `app/Http/Middleware/RequireRole.php` — `role:SUPER_ADMIN` / `role:A,B` route guard.
+- User gains `hasPermission()/hasAnyPermission()/hasAllPermissions()` helpers (use in Blade `@if(auth()->user()->hasPermission('patients.create'))` or `@can('patients.create')`).
+- Tests: `tests/Feature/Rbac/RbacTest.php` — 12 tests. Suite now 42 pass / 218 assertions.
+
+## Phase 4 — Multi-Tenancy (COMPLETED)
+- `app/Http/Middleware/SetTenantContext.php` — resolves tenant from `Auth::user()->tenant_id` into `TenantContext`. Registered as `tenant` alias in `bootstrap/app.php`, applied to the authenticated route group.
+- `app/Services/Tenancy/TenantService.php` — `id()/isSet()/current()/isGlobal()/resolveForUser()`.
+- Super Admin (`tenant_id = null`) → null context → no global scope → cross-tenant visibility. Tenant users → forced scope + force-stamped `tenant_id`.
+- `BelongsToTenant` trait **force-stamps** `tenant_id` from context on create (overrides client input) so mass-assignment can never inject another tenant.
+- `PatientFactory` reads `tenant_id` from `TenantContext`; `UserFactory` gains `forTenant()`/`superAdmin()` helpers.
+- Tests: `tests/Feature/Tenancy/TenantIsolationTest.php` — 11 tests. Suite now 30 pass / 76 assertions.
+
 ## Phase 2 — Database Design (COMPLETED)
 - 11 migration files creating ~75 tables, all migrate cleanly on SQLite.
 - Migration naming: `2025_01_02_0000XX_create_<domain>_tables.php` grouped by domain.

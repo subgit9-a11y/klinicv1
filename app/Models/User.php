@@ -53,6 +53,21 @@ class User extends Authenticatable implements MustVerifyEmail
         return in_array($this->role, (array) $roles, true);
     }
 
+    public function hasPermission(string $permission): bool
+    {
+        return app(\App\Services\Auth\PermissionService::class)->can($this, $permission);
+    }
+
+    public function hasAnyPermission(array $permissions): bool
+    {
+        return app(\App\Services\Auth\PermissionService::class)->canAny($this, $permissions);
+    }
+
+    public function hasAllPermissions(array $permissions): bool
+    {
+        return app(\App\Services\Auth\PermissionService::class)->canAll($this, $permissions);
+    }
+
     public function hasTwoFactorEnabled(): bool
     {
         return ! is_null($this->two_factor_secret)

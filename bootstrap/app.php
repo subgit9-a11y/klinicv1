@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Middleware\EnsureAccountIsActive;
+use App\Http\Middleware\RequireRole;
 use App\Http\Middleware\RequireTwoFactorChallenge;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
@@ -21,6 +22,7 @@ return Application::configure(basePath: dirname(__DIR__))
             'active' => EnsureAccountIsActive::class,
             '2fa' => RequireTwoFactorChallenge::class,
             'tenant' => SetTenantContext::class,
+            'role' => RequireRole::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
