@@ -3,6 +3,7 @@
 namespace Database\Factories;
 
 use App\Models\Patient;
+use App\Services\Patients\PatientUidService;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,10 +19,14 @@ class PatientFactory extends Factory
             // tenant_id is force-stamped by BelongsToTenant from TenantContext
             // when a tenant is active; left null here so the trait populates it.
             'tenant_id' => app(\App\Services\Tenancy\TenantContext::class)->id(),
-            'k360_uid' => 'K360-P-'.str_pad((string) fake()->unique()->randomNumber(7), 10, '0', STR_PAD_LEFT),
+            'k360_uid' => app(PatientUidService::class)->generate(),
             'first_name' => fake()->firstName($gender === 'OTHER' ? null : strtolower($gender)),
             'last_name' => fake()->lastName(),
-            'phone' => fake()->numerify('9#########'),
+            'phone' => function () {
+                // Unique phone within a test run avoids the (tenant_id, phone)
+                // unique constraint when the factory is called many times.
+                return fake()->numerify('9#########');
+            },
             'email' => fake()->optional()->safeEmail(),
             'gender' => $gender,
             'dob' => fake()->dateTimeBetween('-80 years', '-1 year')->format('Y-m-d'),
@@ -33,5 +38,17 @@ class PatientFactory extends Factory
             'country_code' => 'IN',
             'status' => 'ACTIVE',
         ];
+    }
+
+    /**
+     * Ensure a globally-unique phone for the (tenant_id, phone) constraint.
+     */
+    public function configure(): static
+    {
+        return $this->afterMaking(function (Patient $patient) {
+            if (empty($patient->phone)) {
+                $patient->phone = fake()->unique()->numerify('9#########');
+            }
+        });
     }
 }

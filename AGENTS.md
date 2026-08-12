@@ -66,6 +66,19 @@ No pharmacy/medicine ordering/delivery. No commission on treatment revenue. Cash
 The PHP runtime is NOT preinstalled in this container. If `php` is missing (command not found), install via apt:
 `sudo apt-get install -y php8.4-cli php8.4-mbstring php8.4-xml php8.4-curl php8.4-mysql php8.4-zip php8.4-gd php8.4-bcmath php8.4-intl php8.4-sqlite3 php8.4-readline`. Composer also missing — install from getcomposer.org to `/usr/local/bin/composer`. Dev DB is SQLite (file), APP_KEY already set in `.env`.
 
+## Phase 6 — Patient UID & Patient 360 (COMPLETED)
+- `app/Services/Patients/PatientUidService.php` — collision-safe 10-digit UID `K360-P-0000012487` (select-for-update increment + retry loop, zero-padded, `isValid()` guard).
+- `app/Services/Patients/PatientService.php` — `register()/findDuplicateByPhone()/search()/findByUid()/update()`. Tenant-scoped (resolves from `TenantContext`), force-stamps `tenant_id`, generates UID via service, rejects manual UID/tenant tamper on update, supports related `identifiers` + `consents` on register. Throws if no tenant context.
+- `app/Policies/PatientPolicy.php` — view/viewAny/create/update/delete/export; cross-tenant access denied by `tenant_id` mismatch.
+- `app/Livewire/Patients/` — `PatientList` (search + inline register form, pagination), `Patient360` (15-tab patient chart), `PatientEdit`. Auto-resolved by Livewire FQN convention.
+- `resources/views/livewire/patients/` — `patient-list`, `patient-360`, `patient-edit` Blade views. `resources/views/components/patient/header.blade.php` — Patient 360 header (avatar, UID, Edit button, tab strip).
+- Routes in `routes/web.php` (order matters: `/patients/{patient}/edit` before `/patients/{patient}` to avoid "edit" matching `{patient}`).
+- `PatientFactory` now uses `PatientUidService::generate()` (no more faker `unique()` collision risk) + `configure()` afterMaking for unique phone.
+- `x-ui.page-header` component extended with an `actions` slot for header action buttons.
+- Tests: `tests/Feature/Patients/` — `PatientServiceTest` (14), `PatientPolicyTest` (8), `PatientLivewireTest` (8). Suite now 72 pass / 289 assertions.
+- **Livewire gotcha**: nullable DB columns assigned to `string`-typed public properties throw "Cannot assign null". Use `?string` for optional fields in Livewire component mount/fill.
+- **Browser-tool gotcha**: after a Livewire morph (e.g. toggling a form via wire:click), `browser_get_state` may return empty `interactive_elements`. Prefer Livewire component tests (`Livewire::test(...)`) over browser clicks for verifying AJAX form flows.
+
 ## Phase 5 — RBAC (COMPLETED)
 - `app/Services/Auth/Permissions.php` — granular permission catalog grouped by module (patients, appointments, consultations, prescriptions, treatments, ipd, billing, ai, documents). Dotted keys like `patients.view`.
 - `app/Services/Auth/RolePermissions.php` — default grant per role (SUPER_ADMIN bypassed; CLINIC_OWNER=all; DOCTOR/RECEPTIONIST/THERAPIST/NURSE/IPD_STAFF/ASSISTANT scoped).
