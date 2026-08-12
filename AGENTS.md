@@ -51,3 +51,23 @@ Brand teal: primary `#1f9482` (brand-500), dark `#167669` (brand-600). See `reso
 
 ## V1 Boundary
 No pharmacy/medicine ordering/delivery. No commission on treatment revenue. Cashfree only for online consultation payments + SaaS subscription. Clinic-side payments: CASH/UPI/CARD/BANK_TRANSFER/CHEQUE/OTHER.
+
+## Phase 2 — Database Design (COMPLETED)
+- 11 migration files creating ~75 tables, all migrate cleanly on SQLite.
+- Migration naming: `2025_01_02_0000XX_create_<domain>_tables.php` grouped by domain.
+- 68 Eloquent models in `app/Models/` with fillable, casts, relationships, tenant scopes.
+- `app/Models/Concerns/BelongsToTenant` trait: global scope + auto-stamps `tenant_id` on create.
+- `app/Services/Tenancy/TenantContext` singleton (registered in `AppServiceProvider`).
+- Models WITHOUT the auto-scope (intentional): `Tenant`, `User`, `Plan`, `AuditLog`, `FeatureFlag`, `SystemSetting`, AI governance models, `IntegrationAccount`, `CustomField` — these are cross-tenant/global or Super Admin scoped.
+- Factories: `UserFactory`, `TenantFactory`, `PatientFactory`, `PlanFactory`, `AppointmentFactory`.
+- Seeders: `PlanSeeder` (Solo Doctor ₹999 / Small Clinic ₹1999, each with 12 features), `SystemSettingsSeeder` (10 base settings).
+
+### ⚠️ Critical: Laravel belongsTo foreign key inference
+Laravel derives the `belongsTo` foreign key from the **method name** (snake_cased + `_id`), NOT the related model name. So a method `bed()` → looks for column `bed_id`, even if the related model is `IpdBed` (which has column `ipd_bed_id`). **Always pass the foreign key explicitly** when the method name doesn't match the column:
+```php
+// CORRECT — column is ipd_bed_id
+public function bed(): BelongsTo { return $this->belongsTo(IpdBed::class, 'ipd_bed_id'); }
+// WRONG — would query where ipd_beds.id = {bed_id} (null)
+public function bed(): BelongsTo { return $this->belongsTo(IpdBed::class); }
+```
+The same applies to `doctor()` → `user_id`, `service()` → `treatment_service_id`, `admission()` → `ipd_admission_id`, etc. All such cases are fixed in the codebase.
