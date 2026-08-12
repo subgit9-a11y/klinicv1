@@ -27,16 +27,21 @@
     <nav class="flex-1 px-3 py-4 space-y-1 overflow-y-auto">
         @foreach($nav as $item)
             @php $active = request()->routeIs($item['route']); @endphp
-            <a href="{{ route($item['route']) }}"
-               class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition {{ $active ? 'bg-brand-800 text-white' : 'text-brand-50 hover:bg-brand-600' }}">
-                <span class="w-6 text-center text-xs font-mono">{{ $item['icon'] }}</span>
-                <span>{{ $item['label'] }}</span>
-            </a>
+            @if(\Illuminate\Support\Facades\Route::has($item['route']))
+                <a href="{{ route($item['route']) }}"
+                   class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition {{ $active ? 'bg-brand-800 text-white' : 'text-brand-50 hover:bg-brand-600' }}">
+                    <span class="w-6 text-center text-xs font-mono">{{ $item['icon'] }}</span>
+                    <span>{{ $item['label'] }}</span>
+                </a>
+            @endif
         @endforeach
     </nav>
     <div class="px-3 py-4 border-t border-brand-600">
         @auth
             <div class="px-3 py-2 text-sm text-brand-50 truncate">{{ auth()->user()->name ?? 'User' }}</div>
+            <a href="{{ route('profile') }}" class="block w-full text-left px-3 py-2 rounded-md text-sm text-brand-50 hover:bg-brand-600">
+                {{ __('klinic360.nav.profile') }}
+            </a>
             <form method="POST" action="{{ route('logout') }}">
                 @csrf
                 <button type="submit" class="w-full text-left px-3 py-2 rounded-md text-sm text-brand-50 hover:bg-brand-600">

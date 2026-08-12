@@ -13,9 +13,9 @@ use Illuminate\Notifications\Notifiable;
 #[Fillable([
     'tenant_id', 'name', 'email', 'phone', 'password', 'role',
     'permissions', 'two_factor_secret', 'two_factor_confirmed_at',
-    'is_active', 'avatar', 'designation',
+    'two_factor_recovery_codes', 'is_active', 'avatar', 'designation',
 ])]
-#[Hidden(['password', 'remember_token', 'two_factor_secret', 'permissions'])]
+#[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'permissions'])]
 class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
@@ -28,6 +28,7 @@ class User extends Authenticatable implements MustVerifyEmail
             'password' => 'hashed',
             'permissions' => 'array',
             'two_factor_confirmed_at' => 'datetime',
+            'two_factor_recovery_codes' => 'encrypted:array',
             'is_active' => 'boolean',
         ];
     }
@@ -50,5 +51,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function hasRole(string|array $roles): bool
     {
         return in_array($this->role, (array) $roles, true);
+    }
+
+    public function hasTwoFactorEnabled(): bool
+    {
+        return ! is_null($this->two_factor_secret)
+            && ! is_null($this->two_factor_confirmed_at);
+    }
+
+    public function fullName(): string
+    {
+        return $this->name;
     }
 }
