@@ -30,7 +30,7 @@ class AppointmentService
     private const TYPES = ['WALK_IN', 'IN_PERSON', 'ONLINE', 'FOLLOW_UP', 'TREATMENT', 'IPD_REVIEW'];
 
     private const STATUS_FLOW = [
-        'SCHEDULED' => ['CONFIRMED', 'CANCELLED', 'NO_SHOW'],
+        'SCHEDULED' => ['CONFIRMED', 'CHECKED_IN', 'CANCELLED', 'NO_SHOW'],
         'CONFIRMED' => ['CHECKED_IN', 'CANCELLED', 'NO_SHOW'],
         'CHECKED_IN' => ['IN_CONSULTATION', 'CANCELLED', 'NO_SHOW'],
         'IN_CONSULTATION' => ['COMPLETED', 'CANCELLED'],

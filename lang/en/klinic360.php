@@ -179,4 +179,20 @@ return [
     'appointments.types.follow_up' => 'Follow-up',
     'appointments.types.treatment' => 'Treatment',
     'appointments.types.ipd_review' => 'IPD Review',
+
+    // Queue module
+    'queue.title' => 'Queue Board',
+    'queue.call_next' => 'Call Next',
+    'queue.start' => 'Start',
+    'queue.done_btn' => 'Done',
+    'queue.skip_btn' => 'Skip',
+    'queue.recall' => 'Recall',
+    'queue.no_waiting' => 'No patients waiting in the queue.',
+    'queue.no_doctors' => 'No doctors configured for this clinic.',
+    'queue.confirm_skip' => 'Mark this patient as no-show?',
+    'queue.empty' => 'No tokens yet.',
+    'queue.total' => 'Total',
+    'queue.waiting' => 'Waiting',
+    'queue.done' => 'Done',
+    'queue.skipped' => 'Skipped',
 ];

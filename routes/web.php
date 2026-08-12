@@ -6,6 +6,7 @@ use App\Livewire\Patients\Patient360;
 use App\Livewire\Patients\PatientEdit;
 use App\Livewire\Patients\PatientList;
 use App\Livewire\Profile\Profile;
+use App\Livewire\Queue\QueueBoard;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -21,6 +22,7 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
     Route::get('/patients/{patient}', Patient360::class)->name('patients.show');
 
     Route::get('/appointments', AppointmentBoard::class)->name('appointments.index');
+    Route::get('/queue', QueueBoard::class)->name('queue.index');
 });
 
 require __DIR__.'/auth.php';

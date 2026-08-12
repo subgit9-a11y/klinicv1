@@ -8,6 +8,7 @@ use App\Services\Auth\PermissionService;
 use App\Services\Auth\TwoFactorService;
 use App\Services\Patients\PatientService;
 use App\Services\Patients\PatientUidService;
+use App\Services\Queue\QueueService;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
@@ -22,6 +23,7 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(PatientUidService::class);
         $this->app->singleton(PatientService::class);
         $this->app->singleton(AppointmentService::class);
+        $this->app->singleton(QueueService::class);
 
         $this->app->singleton(TwoFactorService::class, function ($app) {
             return new TwoFactorService(
