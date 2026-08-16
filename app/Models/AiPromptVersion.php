@@ -2,11 +2,14 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 class AiPromptVersion extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'ai_prompt_id', 'version', 'system_prompt', 'user_prompt_template',
         'expected_output_schema', 'default_model', 'created_by',

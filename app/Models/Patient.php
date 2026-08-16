@@ -32,6 +32,16 @@ class Patient extends Model
         return trim($this->first_name.' '.$this->last_name);
     }
 
+    public function getNameAttribute(): string
+    {
+        return $this->fullName();
+    }
+
+    public function getUidAttribute(): ?string
+    {
+        return $this->k360_uid;
+    }
+
     public function appointments(): HasMany
     {
         return $this->hasMany(Appointment::class);

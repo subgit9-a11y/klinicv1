@@ -3,17 +3,19 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\MorphTo;
 
 class AiRequest extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, HasFactory;
 
     protected $fillable = [
         'tenant_id', 'user_id', 'ai_feature_id', 'ai_prompt_version_id',
-        'provider', 'model', 'input_summary', 'output', 'output_status',
+        'provider', 'model', 'contextable_type', 'contextable_id',
+        'input_summary', 'output', 'output_status',
         'status', 'input_tokens', 'output_tokens', 'estimated_cost_cents',
         'duration_ms', 'error', 'approved_at', 'approved_by',
     ];

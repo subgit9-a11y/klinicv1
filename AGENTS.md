@@ -135,3 +135,15 @@ public function bed(): BelongsTo { return $this->belongsTo(IpdBed::class, 'ipd_b
 public function bed(): BelongsTo { return $this->belongsTo(IpdBed::class); }
 ```
 The same applies to `doctor()` → `user_id`, `service()` → `treatment_service_id`, `admission()` → `ipd_admission_id`, etc. All such cases are fixed in the codebase.
+
+## Phase 17 — API Layer (COMPLETED)
+- REST `/api/v1` with Form Requests, API Resources, Sanctum token auth, tenant context, policies, rate limiting, validation (Document 2 §22).
+- Auth: `AuthController` login/logout via `TokenService` (custom `api_tokens` table, hashed tokens). `AuthenticateApiToken` middleware (`auth.api` alias) sets `auth()->setUser()` + `TenantContext` from token's `tenant_id`. Login route `throttle:5,1`; authenticated routes `throttle:60,1`.
+- Endpoints: auth (login/logout), patients (CRUD), appointments (index/store/show/cancel), consultations (index/store/show), treatments (index/store/show/complete/cancel), ipd-admissions (index/store/show/discharge), invoices (index/store/show/issue/recordPayment), prescriptions (nested patients.prescriptions, shallow show), teleconsultations (index/show), payment webhooks (signature-verified, not token-authed).
+- **Policy registration gotcha**: Laravel auto-discovers policies by `<Model>Policy` name. Models whose policies are named differently must be registered explicitly via `Gate::policy(Model::class, Policy::class)` in `AppServiceProvider::boot()`. This bit `TreatmentBooking`→`TreatmentPolicy` and `IpdAdmission`→`IpdPolicy` (caused 403 on create/discharge until registered).
+- **Resource response wrapping**: `response(JsonResource::make($model))` returns the resource's `resolve()` output at the JSON top level (NO `data` wrapper). So show-endpoint tests assert `assertJsonPath('id', ...)` not `assertJsonPath('data.id', ...)`. Collection responses (`Resource::collection(...)`) DO wrap in `data`.
+- **IpdPolicy** uses non-standard method names `admit()`/`discharge()` (not `create()`/`update()`) matching `IpdService::admit()/discharge()`.
+- **IpdService::discharge()** expects summary keys: `discharge_diagnosis`, `treatment_given`, `advice_on_discharge`, `follow_up_instructions`, `follow_up_days` (NOT `discharge_notes`/`final_diagnosis`).
+- DOCTOR lacks `ipd.admit`/`ipd.discharge` perms — use `CLINIC_OWNER` for IPD API tests. RECEPTIONIST lacks `prescriptions.create` — good for forbidden tests.
+- **Rate-limit test gotcha**: `throttle:60,1` allows 60 attempts; the 61st request returns 200, the 62nd returns 429. Loop must do 61 successful requests before asserting 429. Login with wrong credentials throws `ValidationException` (422), not 401.
+- Tests: `ApiAuthAndPatientsTest`, `ApiResourcesTest` (appointments/consultations/invoices), `ApiTreatmentBookingTest`, `ApiIpdTest`, `ApiPrescriptionsTest`, `ApiTeleconsultationsTest`, `ApiRateLimitTest`. Suite now 367 pass / 970 assertions.

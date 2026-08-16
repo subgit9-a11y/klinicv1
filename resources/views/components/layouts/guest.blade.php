@@ -10,7 +10,6 @@
     <title>{{ $title ?? __('klinic360.app_name') }}</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
 </head>
 <body class="bg-gradient-to-br from-brand-50 to-white text-gray-900 font-sans antialiased min-h-screen flex items-center justify-center px-4 py-8">
     <div class="max-w-md w-full bg-white rounded-xl shadow-lg border border-gray-200 p-8">
@@ -23,6 +22,5 @@
         {{ $slot }}
     </div>
 
-    @livewireScripts
 </body>
 </html>

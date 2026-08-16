@@ -8,7 +8,6 @@
     <title>{{ $title ?? __('klinic360.app_name') }} @if(isset($subtitle)) · {{ $subtitle }}@endif</title>
 
     @vite(['resources/css/app.css', 'resources/js/app.js'])
-    @livewireStyles
 </head>
 <body class="bg-gray-50 text-gray-900 font-sans antialiased min-h-screen flex flex-col">
     @isset($sidebar)
@@ -29,6 +28,5 @@
         </main>
     @endif
 
-    @livewireScripts
 </body>
 </html>

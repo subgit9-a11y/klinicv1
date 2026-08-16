@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class FeatureFlag extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'key', 'description', 'is_global', 'default_enabled',
         'tenant_id', 'enabled',

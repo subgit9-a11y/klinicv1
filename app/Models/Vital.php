@@ -3,11 +3,12 @@
 namespace App\Models;
 
 use App\Models\Concerns\BelongsToTenant;
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class Vital extends Model
 {
-    use BelongsToTenant;
+    use BelongsToTenant, HasFactory;
 
     public $timestamps = true;
 

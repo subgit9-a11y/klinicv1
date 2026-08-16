@@ -45,7 +45,7 @@ class AppointmentService
         $validated = $this->validateBooking($attributes);
 
         return DB::transaction(function () use ($validated, $creator, $tenantId) {
-            $doctorId = $validated['user_id'];
+            $doctorId = $validated['user_id'] ?? null;
 
             if ($doctorId !== null) {
                 // Lock the doctor's overlapping appointments for this date.

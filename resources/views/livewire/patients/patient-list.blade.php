@@ -120,7 +120,7 @@
                 </thead>
                 <tbody class="divide-y divide-gray-100">
                     @forelse($patients as $patient)
-                        <tr class="hover:bg-gray-50">
+                        <tr wire:key="patient-{{ $patient->id }}" class="hover:bg-gray-50">
                             <td class="px-4 py-3 font-mono text-xs text-gray-600">{{ $patient->k360_uid }}</td>
                             <td class="px-4 py-3 font-medium text-gray-900">{{ $patient->fullName() }}</td>
                             <td class="px-4 py-3 text-gray-600">{{ $patient->phone }}</td>

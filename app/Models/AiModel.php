@@ -2,10 +2,13 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
 class AiModel extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'provider', 'model_id', 'display_name', 'context_window',
         'supports_vision', 'supports_structured',
