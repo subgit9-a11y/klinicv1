@@ -57,4 +57,9 @@ class Consultation extends Model
     {
         return $this->hasMany(Prescription::class);
     }
+
+    public function notes(): HasMany
+    {
+        return $this->hasMany(ClinicalNote::class);
+    }
 }

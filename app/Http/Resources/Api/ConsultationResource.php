@@ -31,6 +31,9 @@ class ConsultationResource extends JsonResource
                 'id' => $this->doctor?->id,
                 'name' => $this->doctor?->name,
             ],
+            'vitals' => $this->whenLoaded('vitals'),
+            'diagnoses' => $this->whenLoaded('diagnoses'),
+            'notes' => $this->whenLoaded('notes'),
             'completed_at' => $this->completed_at?->toIso8601String(),
             'created_at' => $this->created_at?->toIso8601String(),
         ];

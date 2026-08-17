@@ -8,7 +8,9 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Api\StoreInvoiceRequest;
 use App\Http\Resources\Api\InvoiceResource;
 use App\Models\Invoice;
+use App\Models\Payment;
 use App\Services\Billing\BillingService;
+use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
@@ -90,6 +92,33 @@ class InvoiceController extends Controller
                 'amount_cents' => $payment->amount_cents,
                 'method' => $payment->method,
                 'status' => $payment->status,
+            ],
+        ], 201);
+    }
+
+    public function refund(Request $request, Invoice $invoice, Payment $payment): Response
+    {
+        $this->authorize('refund', $invoice);
+
+        if ((int) $payment->invoice_id !== (int) $invoice->id) {
+            return response(['message' => 'Payment does not belong to this invoice.'], 422);
+        }
+
+        $validated = $request->validate([
+            'amount_cents' => ['required', 'integer', 'min:1'],
+            'reason' => ['nullable', 'string', 'max:500'],
+            'gateway_refund_id' => ['nullable', 'string', 'max:255'],
+        ]);
+
+        $refund = $this->billingService->refund($payment, $validated);
+
+        return response([
+            'message' => 'Refund issued.',
+            'data' => [
+                'id' => $refund->id,
+                'refund_number' => $refund->refund_number,
+                'amount_cents' => $refund->amount_cents,
+                'status' => $refund->status,
             ],
         ], 201);
     }

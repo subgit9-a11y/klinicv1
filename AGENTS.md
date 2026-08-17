@@ -170,3 +170,16 @@ The same applies to `doctor()` → `user_id`, `service()` → `treatment_service
 - Livewire: inject `AuditService` via `boot()` method (not constructor) for Livewire components.
 - `auth()->user()` in Super Admin context may return null (guard mismatch); pass explicitly where needed.
 - Tests: `tests/Feature/Audit/AuditLogTest` — 3 tests. Suite now 379 pass / 993 assertions.
+
+## Phase 18 — Clinical Sub-Resource APIs (COMPLETED)
+- Exposed previously-orphaned ConsultationService methods via API: PUT /consultations/{id} (update), POST .../complete, .../amend, .../vitals, .../diagnoses, .../notes.
+- Refactored ConsultationController::store() to delegate to ConsultationService::start() (was bypassing tenant-scoped validation). Constructor-injects ConsultationService.
+- Added Consultation::notes() HasMany relation (was missing — ClinicalNote had consultation_id FK but no inverse relation).
+- Extended ConsultationResource with vitals/diagnoses/notes via whenLoaded() so show can return sub-resources.
+- Created 3 new EMR services: FollowupService (schedule/updateStatus/forPatient), InvestigationService (order/update/forPatient), ConsentService (record/revoke/forPatient) — all tenant-scoped with requireTenant() + assertSameTenant() pattern matching ConsultationService.
+- Created 3 controllers: FollowupController, InvestigationController, ConsentController (nested under patients.{resource}).
+- Exposed BillingService::refund() via POST /invoices/{invoice}/payments/{payment}/refund in InvoiceController (uses refund policy method + BILLING_REFUND permission, not update).
+- Policies created: FollowupPolicy, InvestigationPolicy, PatientConsentPolicy — reuse CONSULTATIONS_* permissions (no dedicated followup/investigation/consent permission constants exist).
+- **Policy naming gotcha**: Laravel auto-discovers PatientConsent -> PatientConsentPolicy, NOT ConsentPolicy. Name the policy after the Model class.
+- **Response wrapper consistency**: response(JsonResource::make(...)) returns at root (no data key); response(["data" => JsonResource::make(...)]) wraps explicitly. New endpoints use the explicit ["data" => ...] wrapper to match the store pattern. index() collection endpoints keep Resource::collection() (auto-wraps in data).
+- Tests: tests/Feature/Api/ApiClinicalFlowsTest — 11 tests. Suite now 414 pass / 1160 assertions.
