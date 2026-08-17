@@ -18,7 +18,7 @@ class StoreTreatmentBookingRequest extends FormRequest
         return [
             'patient_id' => ['required', 'integer', 'exists:patients,id'],
             'treatment_service_id' => ['required', 'integer', 'exists:treatment_services,id'],
-            'therapist_id' => ['nullable', 'integer', 'exists:users,id'],
+            'therapist_id' => ['nullable', 'integer', 'exists:therapists,id'],
             'treatment_room_id' => ['nullable', 'integer', 'exists:treatment_rooms,id'],
             'booking_date' => ['required', 'date', 'after_or_equal:today'],
             'start_time' => ['required', 'date_format:H:i'],

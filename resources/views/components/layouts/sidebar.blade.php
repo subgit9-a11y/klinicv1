@@ -13,6 +13,7 @@
         ['route' => 'documents.index', 'label' => __('klinic360.nav.documents'), 'icon' => 'D'],
         ['route' => 'reports.index', 'label' => __('klinic360.nav.reports'), 'icon' => 'R'],
         ['route' => 'notifications.index', 'label' => __('klinic360.nav.notifications'), 'icon' => 'N'],
+        ['route' => 'ai.index', 'label' => __('klinic360.nav.ai'), 'icon' => 'AI'],
         ['route' => 'settings.index', 'label' => __('klinic360.nav.settings'), 'icon' => 'S'],
     ];
 @endphp

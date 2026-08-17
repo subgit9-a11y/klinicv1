@@ -58,7 +58,12 @@ No pharmacy/medicine ordering/delivery. No commission on treatment revenue. Cash
 - Middleware: `app/Http/Middleware/EnsureAccountIsActive.php`, `RequireTwoFactorChallenge.php`. Registered in `bootstrap/app.php`.
 - All Livewire component Blade views MUST have a single root `<div>` (MultipleRoot Elements exception otherwise).
 - In Livewire components use `session()->regenerate()`, NOT `request()->session()->regenerate()`.
-- Sidebar uses `@if(Route::has($item['route']))` guards so not-yet-defined routes don't fatal the layout.
+- Sidebar uses `@if(Route::has($item['route']))` guards so not-yet-defined routes don't fatal the layout. All 16 nav routes now resolve to web URLs.
+
+## Route name collisions (API vs web)
+- `routes/api.php` authenticated group is prefixed with `->name('api.')` so `Route::apiResource('patients', ...)` generates `api.patients.index` (not `patients.index`), avoiding collisions with web routes (`patients.index` → `/patients` web, `api.patients.index` → `/api/v1/patients`). The webhook route keeps its explicit `api.webhooks.payments` name.
+- API tests use literal `/api/v1/...` URLs via `getJson()`/`postJson()`, never `route()` names, so renaming API route names is safe.
+- Patient model has NO `full_name` column — use `$patient->name` (accessor) or `$patient->fullName()`, not `$patient->full_name`.
 - AdminUserSeeder seeds Super Admin (superadmin@klinic360.test). `DatabaseSeeder` runs PlanSeeder + SystemSettingsSeeder + AdminUserSeeder.
 - Tests: `tests/Feature/Auth/AuthenticationTest.php` — 17 tests. Total suite 19 pass / 53 assertions. Run with `php artisan test`.
 

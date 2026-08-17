@@ -24,7 +24,7 @@ Route::prefix('v1')->group(function () {
     })->name('api.webhooks.payments');
 
     // Authenticated endpoints (rate limited per token).
-    Route::middleware(['auth.api', 'throttle:60,1'])->group(function () {
+    Route::middleware(['auth.api', 'throttle:60,1'])->name('api.')->group(function () {
         Route::post('/auth/logout', [AuthController::class, 'logout']);
 
         Route::apiResource('patients', PatientController::class);

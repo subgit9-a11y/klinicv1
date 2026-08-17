@@ -12,6 +12,12 @@ return [
     'footer_note' => 'Patient UID · Patient 360 · Appointments · EMR · Billing · AI Assistance',
 
     'dashboard' => 'Dashboard',
+    'dashboard_stats' => [
+        'new_this_period' => 'New this period',
+        'completed' => ':count completed',
+        'in_consultation' => ':count in consultation',
+        'outstanding' => 'Outstanding :amount',
+    ],
     'no_records' => 'No records found.',
 
     'nav.patients' => 'Patients',
@@ -26,6 +32,7 @@ return [
     'nav.documents' => 'Documents',
     'nav.reports' => 'Reports',
     'nav.notifications' => 'Notifications',
+    'nav.ai' => 'AI Assistant',
     'nav.settings' => 'Settings',
     'nav.super_admin' => 'Super Admin',
     'nav.profile' => 'Profile',

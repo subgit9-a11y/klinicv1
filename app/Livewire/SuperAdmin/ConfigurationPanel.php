@@ -267,6 +267,6 @@ class ConfigurationPanel extends Component
             'features' => $features,
             'aiModels' => $aiModels,
             'aiFeatures' => $aiFeatures,
-        ])->layout('layouts.app');
+        ])->layout('components.layouts.app');
     }
 }

@@ -33,6 +33,21 @@ class Patient360 extends Component
 
     public function render()
     {
+        $this->patient->load([
+            'appointments' => fn ($q) => $q->latest('appointment_date')->limit(20),
+            'consultations' => fn ($q) => $q->latest()->limit(20),
+            'prescriptions' => fn ($q) => $q->latest()->limit(20),
+            'treatmentBookings' => fn ($q) => $q->latest()->limit(20),
+            'ipdAdmissions' => fn ($q) => $q->latest()->limit(10),
+            'investigations' => fn ($q) => $q->latest()->limit(20),
+            'documents' => fn ($q) => $q->latest()->limit(20),
+            'followups' => fn ($q) => $q->latest('due_date')->limit(20),
+            'invoices' => fn ($q) => $q->latest()->limit(20),
+            'payments' => fn ($q) => $q->latest()->limit(20),
+            'clinicalNotes' => fn ($q) => $q->latest()->limit(20),
+            'vitals' => fn ($q) => $q->latest('recorded_at')->limit(20),
+        ]);
+
         return view('livewire.patients.patient-360');
     }
 }

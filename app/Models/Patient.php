@@ -71,4 +71,44 @@ class Patient extends Model
     {
         return $this->hasMany(Invoice::class);
     }
+
+    public function treatmentBookings(): HasMany
+    {
+        return $this->hasMany(TreatmentBooking::class);
+    }
+
+    public function ipdAdmissions(): HasMany
+    {
+        return $this->hasMany(IpdAdmission::class);
+    }
+
+    public function investigations(): HasMany
+    {
+        return $this->hasMany(Investigation::class);
+    }
+
+    public function documents(): HasMany
+    {
+        return $this->hasMany(Document::class);
+    }
+
+    public function followups(): HasMany
+    {
+        return $this->hasMany(Followup::class);
+    }
+
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function clinicalNotes(): HasMany
+    {
+        return $this->hasMany(ClinicalNote::class);
+    }
+
+    public function vitals(): HasMany
+    {
+        return $this->hasMany(Vital::class);
+    }
 }
