@@ -147,3 +147,13 @@ The same applies to `doctor()` → `user_id`, `service()` → `treatment_service
 - DOCTOR lacks `ipd.admit`/`ipd.discharge` perms — use `CLINIC_OWNER` for IPD API tests. RECEPTIONIST lacks `prescriptions.create` — good for forbidden tests.
 - **Rate-limit test gotcha**: `throttle:60,1` allows 60 attempts; the 61st request returns 200, the 62nd returns 429. Loop must do 61 successful requests before asserting 429. Login with wrong credentials throws `ValidationException` (422), not 401.
 - Tests: `ApiAuthAndPatientsTest`, `ApiResourcesTest` (appointments/consultations/invoices), `ApiTreatmentBookingTest`, `ApiIpdTest`, `ApiPrescriptionsTest`, `ApiTeleconsultationsTest`, `ApiRateLimitTest`. Suite now 367 pass / 970 assertions.
+
+## Scheduler (Document 2 §25) — COMPLETED
+- `bootstrap/app.php` → `withSchedule()` wires 7 commands.
+- Commands in `app/Console/Commands/`: `SendAppointmentReminders`, `SendTreatmentReminders`, `SendFollowupReminders`, `RetryNotifications`, `CheckSubscriptions`, `ReconcilePayments`, `CleanupRecords`.
+- **Carbon parse gotcha**: `appointment_date` is a `date` cast (Carbon). Concatenating `"$date $time"` then `Carbon::parse()` can throw `InvalidFormatException`. Use `$date->copy()->setTimeFromTimeString($time)` instead.
+- `RetryNotifications` re-dispatches PENDING/FAILED deliveries via `NotificationService::sendOnChannel()` up to `MAX_ATTEMPTS=3`.
+- `ReconcilePayments` skips gracefully when gateway unconfigured (`isConfigured()` check) — important for test envs without Cashfree creds.
+- `CleanupRecords` uses `config('klinic.audit_retention_days', 365)`.
+- **HasFactory trait**: `Followup` model was missing `HasFactory` — `factory()` calls failed until added.
+- Tests: `tests/Feature/Scheduler/SchedulerCommandsTest` — 9 tests. Suite now 376 pass / 986 assertions.

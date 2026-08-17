@@ -9,6 +9,7 @@ use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
+use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -40,4 +41,21 @@ return Application::configure(basePath: dirname(__DIR__))
         $exceptions->shouldRenderJsonWhen(
             fn (Request $request) => $request->is('api/*'),
         );
-    })->create();
+    })
+    ->withSchedule(function (Schedule $schedule): void {
+        // Appointment reminders — for appointments in the next 24h.
+        $schedule->command('klinic:send-appointment-reminders')->everyFifteenMinutes();
+        // Treatment session reminders.
+        $schedule->command('klinic:send-treatment-reminders')->everyFifteenMinutes();
+        // Follow-up reminders for due follow-ups.
+        $schedule->command('klinic:send-followup-reminders')->dailyAt('09:00');
+        // Retry pending/failed notification deliveries.
+        $schedule->command('klinic:retry-notifications')->everyFiveMinutes();
+        // Expire subscriptions past their end date.
+        $schedule->command('klinic:check-subscriptions')->dailyAt('00:30');
+        // Reconcile pending payments against the gateway.
+        $schedule->command('klinic:reconcile-payments')->hourly();
+        // Clean up stale/old records (expired tokens, old audit logs per retention).
+        $schedule->command('klinic:cleanup')->dailyAt('02:00');
+    })
+    ->create();
