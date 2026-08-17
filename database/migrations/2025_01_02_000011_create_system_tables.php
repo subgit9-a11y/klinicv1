@@ -60,7 +60,7 @@ return new class extends Migration
             $t->foreignId('user_id')->nullable()->index();
             $t->string('action', 64)->index()->comment('auth.login, patient.access, payment.refund, etc.');
             $t->string('category', 32)->nullable()->index()->comment('AUTH, PATIENT, CLINICAL, PRESCRIPTION, TREATMENT, IPD, BILLING, PAYMENT, AI, DOCUMENT, PERMISSION, SUPER_ADMIN');
-            $t->morphs('auditable');
+            $t->nullableMorphs('auditable');
             $t->json('before')->nullable();
             $t->json('after')->nullable();
             $t->string('ip_address', 45)->nullable();

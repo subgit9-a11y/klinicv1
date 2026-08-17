@@ -11,6 +11,7 @@ use App\Models\AiPromptVersion;
 use App\Models\FeatureFlag;
 use App\Models\Plan;
 use App\Models\PlanFeature;
+use App\Services\Audit\AuditService;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -18,6 +19,13 @@ use Livewire\WithPagination;
 class ConfigurationPanel extends Component
 {
     use WithPagination;
+
+    public function boot(AuditService $audit): void
+    {
+        $this->audit = $audit;
+    }
+
+    protected AuditService $audit;
 
     public string $activeTab = 'plans';
 
@@ -158,12 +166,15 @@ class ConfigurationPanel extends Component
             $this->dispatch('feature-created');
         }
 
+        $this->audit->record('superadmin.feature_flag.saved', 'super_admin', ['after' => $data], null, auth()->user());
+
         $this->resetForm();
     }
 
     public function deleteFeature(int $id): void
     {
         FeatureFlag::find($id)?->delete();
+        $this->audit->record('superadmin.feature_flag.deleted', 'super_admin', ['after' => ['id' => $id]], null, auth()->user());
         $this->dispatch('feature-deleted');
     }
 

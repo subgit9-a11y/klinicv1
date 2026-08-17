@@ -8,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\Refund;
+use App\Services\Audit\AuditService;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -24,6 +25,10 @@ use Illuminate\Support\Facades\DB;
  */
 class BillingService
 {
+    public function __construct(
+        private readonly AuditService $audit,
+    ) {}
+
     /**
      * Create a draft invoice.
      *
@@ -147,6 +152,8 @@ class BillingService
                 'status' => $due <= 0 ? 'PAID' : 'PARTIALLY_PAID',
             ]);
 
+            $this->audit->record('payment.recorded', 'billing', ['after' => ['amount_cents' => $amount, 'method' => $attributes['method']]], $payment);
+
             return $payment;
         });
     }
@@ -190,6 +197,8 @@ class BillingService
                 $invoice = $payment->invoice;
                 $invoice->update(['status' => 'REFUNDED']);
             }
+
+            $this->audit->record('refund.issued', 'billing', ['after' => ['amount_cents' => $attributes['amount_cents'], 'reason' => $attributes['reason'] ?? null]], $refund);
 
             return $refund;
         });

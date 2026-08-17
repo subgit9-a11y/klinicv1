@@ -7,6 +7,7 @@ namespace App\Services\Payments;
 use App\Models\Invoice;
 use App\Models\Payment;
 use App\Models\PaymentWebhook;
+use App\Services\Audit\AuditService;
 use App\Services\Billing\BillingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
@@ -30,6 +31,7 @@ class WebhookProcessor
     public function __construct(
         private readonly CashfreePaymentProvider $gateway,
         private readonly BillingService $billing,
+        private readonly AuditService $audit,
     ) {}
 
     /**
@@ -117,6 +119,8 @@ class WebhookProcessor
 
             $webhook->update(['processed' => true, 'processed_at' => now()]);
         });
+
+        $this->audit->record('payment.webhook', 'billing', ['after' => ['event_id' => $eventId]]);
 
         return ['processed' => true, 'event_id' => $eventId, 'message' => 'Webhook processed successfully'];
     }

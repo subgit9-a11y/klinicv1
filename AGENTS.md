@@ -157,3 +157,11 @@ The same applies to `doctor()` → `user_id`, `service()` → `treatment_service
 - `CleanupRecords` uses `config('klinic.audit_retention_days', 365)`.
 - **HasFactory trait**: `Followup` model was missing `HasFactory` — `factory()` calls failed until added.
 - Tests: `tests/Feature/Scheduler/SchedulerCommandsTest` — 9 tests. Suite now 376 pass / 986 assertions.
+
+## Audit Logging (Document 2 §26) — COMPLETED
+- `App\Services\Audit\AuditService::record()` writes `audit_logs` entries (action, category, before/after JSON, auditable morph, user, IP, user agent).
+- Wired into: `AuthController` (login/logout), `BillingService` (payment.recorded, refund.issued), `WebhookProcessor` (payment.webhook), `ConfigurationPanel` (super_admin feature flag save/delete).
+- **Migration gotcha**: `audit_logs.auditable` was `morphs()` (NOT NULL). Audit events like `auth.login` have no auditable model, so insert failed with NOT NULL constraint. Changed to `nullableMorphs('auditable')`. Note: `morphs()->nullable()` chaining breaks (morphs returns void) — use `nullableMorphs()`.
+- Livewire: inject `AuditService` via `boot()` method (not constructor) for Livewire components.
+- `auth()->user()` in Super Admin context may return null (guard mismatch); pass explicitly where needed.
+- Tests: `tests/Feature/Audit/AuditLogTest` — 3 tests. Suite now 379 pass / 993 assertions.

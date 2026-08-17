@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Services\Audit\AuditService;
 use App\Services\Auth\TokenService;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Http\Request;
@@ -17,6 +18,7 @@ class AuthController extends Controller
     public function __construct(
         private readonly TokenService $tokenService,
         private readonly TenantContext $tenantContext,
+        private readonly AuditService $audit,
     ) {}
 
     /**
@@ -54,6 +56,8 @@ class AuthController extends Controller
             $this->tenantContext->set($user->tenant_id);
         }
 
+        $this->audit->record('auth.login', 'auth', ['after' => ['user_id' => $user->id]], null, $user, $request);
+
         return response([
             'message' => 'Authenticated.',
             'token' => $issued['token'],
@@ -77,6 +81,8 @@ class AuthController extends Controller
         if ($token) {
             $token->delete();
         }
+
+        $this->audit->record('auth.logout', 'auth', [], null, $request->user(), $request);
 
         return response(['message' => 'Token revoked.']);
     }
