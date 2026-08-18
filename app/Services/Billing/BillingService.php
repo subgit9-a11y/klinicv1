@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace App\Services\Billing;
 
+use App\Events\PaymentRecorded;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
 use App\Models\Payment;
 use App\Models\Refund;
 use App\Services\Audit\AuditService;
+use App\Support\SequentialNumber;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 
 /**
  * Manages invoice lifecycle: creation, item addition, issuance,
@@ -27,6 +30,7 @@ class BillingService
 {
     public function __construct(
         private readonly AuditService $audit,
+        private readonly CashRegisterService $cashRegister,
     ) {}
 
     /**
@@ -123,7 +127,19 @@ class BillingService
             throw new \DomainException('Payment amount must be positive.');
         }
 
-        return DB::transaction(function () use ($invoice, $attributes, $amount) {
+        $payment = DB::transaction(function () use ($invoice, $attributes, $amount) {
+            // Lock the invoice row so two concurrent payments cannot both
+            // read the same balance and create overpayments. Reload inside
+            // the transaction to read the authoritative amount_due_cents.
+            $invoice = Invoice::lockForUpdate()->find($invoice->id);
+
+            $currentDue = (int) $invoice->amount_due_cents;
+            if ($amount > $currentDue) {
+                throw new \DomainException(
+                    'Payment amount ('.number_format($amount / 100, 2).' '.$invoice->currency.') exceeds outstanding balance ('.number_format($currentDue / 100, 2).' '.$invoice->currency.').'
+                );
+            }
+
             $payment = Payment::create([
                 'invoice_id' => $invoice->id,
                 'patient_id' => $invoice->patient_id,
@@ -154,8 +170,18 @@ class BillingService
 
             $this->audit->record('payment.recorded', 'billing', ['after' => ['amount_cents' => $amount, 'method' => $attributes['method']]], $payment);
 
+            $this->cashRegister->recordPayment($payment);
+
             return $payment;
         });
+
+        // Dispatch after commit so the receipt notification job only fires
+        // on a persisted payment. Only successful payments warrant a receipt.
+        if ($payment->status === 'SUCCESS') {
+            Event::dispatch(new PaymentRecorded($payment, $payment->invoice));
+        }
+
+        return $payment;
     }
 
     /**
@@ -170,14 +196,18 @@ class BillingService
             throw new \DomainException('Only successful payments can be refunded.');
         }
 
-        $alreadyRefunded = $payment->refunds()->where('status', 'SUCCESS')->sum('amount_cents');
-        $remaining = $payment->amount_cents - $alreadyRefunded;
+        return DB::transaction(function () use ($payment, $attributes) {
+            // Lock the payment row so concurrent refunds cannot both read the
+            // same remaining balance and over-refund.
+            $payment = Payment::lockForUpdate()->find($payment->id);
 
-        if ($attributes['amount_cents'] > $remaining) {
-            throw new \DomainException('Refund amount exceeds remaining payment balance.');
-        }
+            $alreadyRefunded = $payment->refunds()->where('status', 'SUCCESS')->sum('amount_cents');
+            $remaining = $payment->amount_cents - $alreadyRefunded;
 
-        return DB::transaction(function () use ($payment, $attributes, $alreadyRefunded) {
+            if ($attributes['amount_cents'] > $remaining) {
+                throw new \DomainException('Refund amount exceeds remaining payment balance.');
+            }
+
             $refund = Refund::create([
                 'payment_id' => $payment->id,
                 'invoice_id' => $payment->invoice_id,
@@ -194,11 +224,13 @@ class BillingService
             $totalRefunded = $alreadyRefunded + $attributes['amount_cents'];
 
             if ($totalRefunded >= $payment->amount_cents && $payment->invoice_id !== null) {
-                $invoice = $payment->invoice;
-                $invoice->update(['status' => 'REFUNDED']);
+                $invoice = Invoice::lockForUpdate()->find($payment->invoice_id);
+                $invoice?->update(['status' => 'REFUNDED']);
             }
 
             $this->audit->record('refund.issued', 'billing', ['after' => ['amount_cents' => $attributes['amount_cents'], 'reason' => $attributes['reason'] ?? null]], $refund);
+
+            $this->cashRegister->recordRefund($refund);
 
             return $refund;
         });
@@ -236,16 +268,16 @@ class BillingService
 
     private function generateInvoiceNumber(): string
     {
-        return 'K360-INV-'.str_pad((string) (Invoice::max('id') + 1), 6, '0', STR_PAD_LEFT);
+        return SequentialNumber::next('invoices', 'K360-INV', 'invoice_number');
     }
 
     private function generatePaymentNumber(): string
     {
-        return 'K360-PAY-'.str_pad((string) (Payment::max('id') + 1), 6, '0', STR_PAD_LEFT);
+        return SequentialNumber::next('payments', 'K360-PAY', 'payment_number');
     }
 
     private function generateRefundNumber(): string
     {
-        return 'K360-REF-'.str_pad((string) (Refund::max('id') + 1), 6, '0', STR_PAD_LEFT);
+        return SequentialNumber::next('refunds', 'K360-REF', 'refund_number');
     }
 }

@@ -76,7 +76,7 @@ class ReportServiceTest extends TestCase
             'amount_due_cents' => 0,
         ]);
         Invoice::factory()->for($patient)->create([
-            'status' => 'DUE',
+            'status' => 'ISSUED',
             'total_cents' => 30000,
             'amount_paid_cents' => 0,
             'amount_due_cents' => 30000,
@@ -97,8 +97,8 @@ class ReportServiceTest extends TestCase
         $this->setTenant($tenant);
 
         $invoice = Invoice::factory()->create();
-        Payment::factory()->for($invoice)->create(['method' => 'CASH', 'amount_cents' => 10000, 'status' => 'COMPLETED']);
-        Payment::factory()->for($invoice)->create(['method' => 'UPI', 'amount_cents' => 20000, 'status' => 'COMPLETED']);
+        Payment::factory()->for($invoice)->create(['method' => 'CASH', 'amount_cents' => 10000, 'status' => 'SUCCESS']);
+        Payment::factory()->for($invoice)->create(['method' => 'UPI', 'amount_cents' => 20000, 'status' => 'SUCCESS']);
 
         $result = app(ReportService::class)->collectionsByMethod(now()->subDay(), now()->addDay());
 

@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Services\Appointments;
 
+use App\Events\AppointmentBooked;
+use App\Events\AppointmentConfirmed;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusHistory;
 use App\Models\AppointmentToken;
@@ -12,6 +14,7 @@ use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Validator;
 use Illuminate\Validation\ValidationException;
 
@@ -44,7 +47,7 @@ class AppointmentService
         $tenantId = $this->requireTenant();
         $validated = $this->validateBooking($attributes);
 
-        return DB::transaction(function () use ($validated, $creator, $tenantId) {
+        $appointment = DB::transaction(function () use ($validated, $creator, $tenantId) {
             $doctorId = $validated['user_id'] ?? null;
 
             if ($doctorId !== null) {
@@ -83,6 +86,11 @@ class AppointmentService
 
             return $appointment->fresh();
         });
+
+        // Dispatch after commit so listeners only fire on a persisted booking.
+        Event::dispatch(new AppointmentBooked($appointment));
+
+        return $appointment;
     }
 
     public function reschedule(Appointment $appointment, array $attributes, User $by): Appointment
@@ -128,7 +136,7 @@ class AppointmentService
             ]);
         }
 
-        return DB::transaction(function () use ($appointment, $status, $by, $note, $current) {
+        $appointment = DB::transaction(function () use ($appointment, $status, $by, $note, $current) {
             $updates = ['status' => $status];
 
             match ($status) {
@@ -157,6 +165,14 @@ class AppointmentService
 
             return $appointment->fresh();
         });
+
+        // Dispatch after commit so confirmation notifications only fire on a
+        // persisted transition.
+        if ($status === 'CONFIRMED' && $current !== 'CONFIRMED') {
+            Event::dispatch(new AppointmentConfirmed($appointment, $note));
+        }
+
+        return $appointment;
     }
 
     public function cancel(Appointment $appointment, User $by, ?string $reason = null): Appointment
@@ -249,6 +265,14 @@ class AppointmentService
 
     protected function assertNoCollision(int $tenantId, int $doctorId, string $date, string $start, string $end, ?int $excludeId): void
     {
+        // Deterministic serialization: lock the doctor's row so that two
+        // concurrent bookings for the same doctor cannot both pass the
+        // "no overlapping appointment exists" check when neither appointment
+        // has been inserted yet. lockForUpdate() on an existing users row is
+        // portable across SQLite (dev) and MySQL/MariaDB (prod); advisory
+        // GET_LOCK is MySQL-only.
+        User::whereKey($doctorId)->lockForUpdate()->first();
+
         $dayStart = now()->parse($date)->startOfDay();
         $dayEnd = now()->parse($date)->endOfDay();
 

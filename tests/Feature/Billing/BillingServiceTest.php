@@ -185,6 +185,26 @@ class BillingServiceTest extends TestCase
         ]);
     }
 
+    public function test_record_payment_rejects_overpayment(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $invoice = Invoice::factory()->create([
+            'status' => 'ISSUED',
+            'total_cents' => 100000,
+            'amount_due_cents' => 60000,
+            'amount_paid_cents' => 40000,
+        ]);
+
+        // 80,000 would exceed the 60,000 outstanding balance — must be refused
+        // so a concurrent or careless payment cannot over-collect.
+        $this->expectException(\DomainException::class);
+        app(BillingService::class)->recordPayment($invoice, [
+            'method' => 'CASH',
+            'amount_cents' => 80000,
+        ]);
+    }
+
     public function test_refund_full_amount_marks_invoice_refunded(): void
     {
         $tenant = Tenant::factory()->create();

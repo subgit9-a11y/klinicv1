@@ -82,4 +82,21 @@ return [
     */
     'subscription_grace_days' => (int) env('KLINIC_SUBSCRIPTION_GRACE_DAYS', 7),
 
+    /*
+    |--------------------------------------------------------------------------
+    | Public Online Booking
+    |--------------------------------------------------------------------------
+    | Online consultation fee charged to patients booking through the public
+    | /book flow. Payment is taken via Cashfree and verified server-side
+    | (webhook + order verification) BEFORE the appointment is confirmed.
+    | When the gateway is unconfigured (dev/test), the appointment stays
+    | SCHEDULED and no payment is required — the flow degrades gracefully.
+    */
+    'public_booking' => [
+        'tenant_id' => (int) env('KLINIC_PUBLIC_BOOKING_TENANT_ID', 0),
+        'consultation_fee_cents' => (int) env('KLINIC_ONLINE_CONSULTATION_FEE_CENTS', 49900),
+        'consultation_duration_minutes' => (int) env('KLINIC_ONLINE_CONSULTATION_MINUTES', 30),
+        'return_url' => env('KLINIC_BOOKING_RETURN_URL', '/book/done'),
+    ],
+
 ];

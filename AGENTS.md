@@ -183,3 +183,168 @@ The same applies to `doctor()` → `user_id`, `service()` → `treatment_service
 - **Policy naming gotcha**: Laravel auto-discovers PatientConsent -> PatientConsentPolicy, NOT ConsentPolicy. Name the policy after the Model class.
 - **Response wrapper consistency**: response(JsonResource::make(...)) returns at root (no data key); response(["data" => JsonResource::make(...)]) wraps explicitly. New endpoints use the explicit ["data" => ...] wrapper to match the store pattern. index() collection endpoints keep Resource::collection() (auto-wraps in data).
 - Tests: tests/Feature/Api/ApiClinicalFlowsTest — 11 tests. Suite now 414 pass / 1160 assertions.
+
+## Phase 19 — P1 Core Product APIs (COMPLETED)
+
+### Appointment status management API
+- `AppointmentController` extended with `reschedule()` (PUT .../reschedule), `changeStatus()` (POST .../status), `cancel()` (POST .../cancel). All delegate to `AppointmentService::reschedule()/changeStatus()/cancel()` which enforce the STATUS_FLOW state-machine and double-booking `lockForUpdate()` checks.
+- `RescheduleAppointmentRequest` validates `appointment_date` (after today), `start_time`, `duration_minutes`.
+- **Route ordering gotcha**: `GET /appointments/slots` MUST be registered BEFORE `Route::apiResource('appointments', ...)->only([..., 'show'])`, otherwise `/appointments/slots` matches the `{appointment}` show binding and 404s. Static paths before dynamic.
+- **Time format gotcha**: `start_time` stored as `HH:MM` (SQLite time cast). Resource returns `14:00` not `14:00:00` — assert accordingly.
+- Tests: `tests/Feature/Api/ApiAppointmentStatusTest` — 7 tests (confirm/check-in→in-consultation→complete, invalid transition 422, no-show, reschedule, past-date validation, available slots).
+
+### Receipt workflow (PDF generation + download)
+- `app/Services/Billing/ReceiptService.php` — `generate(Payment)` renders `pdf.receipt` via dompdf, stores on `local` disk under `pdfs/Y/m/`, persists a `Document` (type=RECEIPT) linking `metadata.payment_id`. `content(Payment)` returns stored bytes or generates on demand. `latestDocument()` finds prior receipt.
+- `app/Http/Controllers/Api/V1/ReceiptController.php` — `generate()` (POST, 201) + `download()` (GET, application/pdf). Nested under invoices: `/invoices/{invoice}/payments/{payment}/receipt`. Authorize via `view` on the invoice; 404s if payment's invoice_id mismatches.
+- **Migration**: `documents.type` enum CHECK didn't include `RECEIPT`/`INVOICE` → migration `2026_08_18_000020_add_receipt_type_to_documents` extends the enum (SQLite stores enum as VARCHAR + CHECK; `->change()` recreates the column).
+- Tests: `tests/Feature/Billing/ReceiptServiceTest` — 6 tests (generate creates Document + file, content returns PDF bytes, latestDocument lookup, API generate 201, API download Content-Type, cross-invoice payment 404).
+
+### Subscription lifecycle API (SaaS plans)
+- `app/Http/Controllers/Api/V1/SubscriptionController.php` — `indexPlans` (GET /plans), `showPlan` (GET /plans/{plan}), `currentSubscription` (GET /subscription), `activate` (POST /subscription/activate), `cancel` (POST /subscriptions/{subscription}/cancel). Delegates to existing `PlanService::activate()/cancel()`.
+- `PlanResource`, `SubscriptionResource`, `ActivateSubscriptionRequest` (`plan_code` exists validation).
+- `app/Policies/SubscriptionPolicy.php` — **non-standard method names** (`viewAnyPlan`, `viewPlan`, `viewAnySubscription`, `viewSubscription`, `activate`, `cancel`) since it authorizes both `Plan` and `Subscription` models. Registered via `Gate::policy()` for BOTH `Plan::class` and `Subscription::class` (Laravel auto-discovery would look for `PlanPolicy`/`SubscriptionPolicy` by class name; the shared policy with custom method names needs explicit registration).
+- **Auth model**: Plans are a global catalogue (any authenticated user may list/view). Subscriptions are tenant-scoped — only CLINIC_OWNER/Super Admin of the owning tenant may activate/cancel. Cross-tenant cancel → 404 (BelongsToTenant global scope hides the row, same secure pattern as treatment catalog).
+- **Response wrapping**: `response(JsonResource::make(...))` returns fields at JSON root (NO `data` wrapper); `response(['data' => JsonResource::make(...)])` wraps explicitly. The subscription show/current endpoints use the explicit wrapper so `assertJsonPath('data.status')` works.
+- Tests: `tests/Feature/Api/ApiSubscriptionTest` — 8 tests (list plans, activate 201, receptionist 403, current subscription, cancel, cross-tenant 404, unknown plan 422, service records ACTIVATED event).
+
+### Suite status
+- 505 tests pass / 1383 assertions (up from 484).
+
+## P1 — Core Product Features (Code Review Fixes, COMPLETED)
+
+Resolved the ChatGPT code review's P0 + P1 issues. Suite now 484 pass / 1331 assertions.
+
+### P0 fixes
+- **T1 Webhook route wired**: `POST /api/v1/webhooks/payments` now invokes `WebhookProcessor` (was a stub returning "Webhook received.").
+- **T2 ReportService DB-agnostic**: replaced SQLite-only `julianday()` with `TIMESTAMPDIFF()`/Carbon-based calculations compatible with both SQLite and MySQL.
+- **T3 ReportService patient search**: fixed `lower(first_name ||" "|| last_name)` (SQLite concat) → `LOWER(CONCAT(...))` MySQL-compatible.
+
+### P1 features (service + API + policy + tests pattern)
+- **Cash Register** (`app/Services/Billing/CashRegisterService.php`): open/close/entry/stats lifecycle; `CashRegisterController` (index/open/show/close/entries); 8 svc + 7 API tests. Float comparison gotcha: JSON decodes `50` vs `50.0` — use loose `==` in assertions.
+- **Expenses** (`ExpenseController`): index/store/show; 7 API tests. Uses `BILLING_REFUND`/expense perms.
+- **Teleconsultation lifecycle** (`app/Services/Telemedicine/TeleconsultationService.php`): create/start/end/cancel; 8 svc + 5 API tests. Store returns resource at JSON root (no `data.` wrapper); RECEPTIONIST can create (has `APPOINTMENTS_CREATE`).
+- **Notification templates** (`app/Services/Notifications/NotificationTemplateService.php`): CRUD with global vs tenant scope guard (`assertSameScope`); `NotificationTemplateSeeder` (10 default global templates); 8 svc tests. **TenantContext gotcha**: to create a global (tenant_id=null) template in tests, call `app(TenantContext::class)->forget()` first — the `BelongsToTenant` creating hook otherwise stamps the current tenant_id over null.
+- **Doctor onboarding + availability** (`app/Services/Staff/DoctorService.php`): onboard/updateProfile/setAvailability (replace schedule); migration `2026_08_18_000010_add_doctor_profile_columns_to_users` adds `specialization, registration_number, medicine_system, consultation_fee_cents, followup_fee_cents`; `UserPolicy` (STAFF_MANAGE perm); `DoctorController` + nested `/doctors/{doctor}/availability`; 9 tests.
+- **Treatment catalogue** (`app/Services/Treatments/TreatmentCatalogService.php`): CRUD for TreatmentService + TreatmentRoom; `TreatmentCatalogPolicy` (TREATMENTS_MANAGE perm, registered explicitly for both models); `TreatmentCatalogController`; 7 tests.
+- **IPD configuration** (`app/Services/IPD/IpdConfigurationService.php`): CRUD wards→rooms→beds with delete guards (ward-with-rooms, room-with-beds, occupied-bed protected); `IpdConfigurationPolicy` (IPD_CONFIGURE perm, registered for IpdWard/IpdRoom/IpdBed); `IpdConfigurationController`; 8 tests.
+
+### New permissions
+- `staff.manage` (CLINIC_OWNER) — `UserPolicy` for staff management.
+- `treatments.manage` (CLINIC_OWNER) — treatment catalogue config.
+- `ipd.configure` (CLINIC_OWNER) — IPD ward/room/bed config.
+All added to `Permissions.php` constants + `groups()` + `RolePermissions` CLINIC_OWNER grant.
+
+### Cross-tenant test pattern
+Cross-tenant model access via route-model binding returns **404** (global scope filters it out before policy), not 403. The policy `view` would only fire if the model resolves. To create a tenantB-owned model in a test while context is tenantA, switch context (`$ctx->set($tenantB->id)`) before factory create, then switch back.
+
+## Phase 19 — Production-Readiness / Bug-Sweep Fixes (COMPLETED)
+Addressed the P0 critical issues from the ChatGPT production-readiness review (webhook wiring, MySQL-incompat reports, billing financial safety, public-booking security, concurrency-safe numbering).
+
+- **Webhook wired (CRITICAL)**: `POST /api/v1/webhooks/payments` was a stub closure returning `{message: 'Webhook received.'}`. Created `app/Http/Controllers/Api/V1/WebhookController.php` that reads the `X-Cf-Signature`/`X-Cashfree-Signature` header and delegates to `WebhookProcessor::process()` (signature verify → server-side `CashfreePaymentProvider::verify()` → idempotent `BillingService::recordPayment()` → audit). Always returns 200 to stop Cashfree retries. Tests: `tests/Feature/Payments/CashfreeIntegrationTest::test_webhook_endpoint_*`.
+- **ReportService MySQL compatibility**: `averageWaitTime()` and `ipdSummary()` used SQLite-only `julianday()` which fails on MySQL/MariaDB (prod). Added driver-agnostic `minutesDiff()`/`daysDiff()` helpers that pick `julianday` (SQLite) vs `TIMESTAMPDIFF` (MySQL). Also widened `averageWaitTime` date filter to `whereBetween(startOfDay, endOfDay)` (SQLite stores `date` columns as full datetime — same gotcha as appointments).
+- **Payment status vocabulary mismatch (BUG)**: `ReportService::collectionsByMethod()` filtered `payments.status = 'COMPLETED'` but `BillingService::recordPayment()` writes `SUCCESS`, so collections silently returned zero. Fixed to `SUCCESS`. Updated the test fixture accordingly.
+- **Invoice status vocabulary mismatch (BUG)**: `revenueSummary()` outstanding filter used `['DUE','PARTIALLY_PAID','OVERDUE']` which don't exist in the billing state machine (`DRAFT, ISSUED, PARTIALLY_PAID, PAID, REFUNDED, VOID`). Fixed to `['ISSUED','PARTIALLY_PAID']`.
+- **PatientService::search() MySQL concat**: `lower(first_name || " " || last_name)` is SQLite-only. Now driver-aware: SQLite keeps `||`, MySQL uses `CONCAT(first_name, " ", COALESCE(last_name, ""))`.
+- **Public booking security + UID**: `OnlineBookingController` accepted any `exists:users,id` user_id (cross-tenant escalation) and issued throwaway `K360-PUB-uniqid()` UIDs. Now: validates the doctor belongs to the booking tenant + practitioner role via `firstOrFail()`; reuses `PatientService::register()` (canonical `K360-P-##########` UID via `PatientUidService`) with phone de-dup via `findDuplicateByPhone()`.
+- **Appointment concurrency hardening**: `assertNoCollision()` only locked existing overlapping appointment rows — two simultaneous bookings where neither exists yet could both pass. Added `User::whereKey($doctorId)->lockForUpdate()->first()` to deterministically serialize concurrent bookings for the same doctor (portable SQLite+MySQL; `GET_LOCK` is MySQL-only).
+- **Billing financial safety**: `recordPayment()` now `lockForUpdate()`s the invoice row inside the txn and rejects overpayment (`amount > amount_due_cents`) so two concurrent payments can't over-collect. `refund()` now `lockForUpdate()`s the payment + invoice rows so concurrent refunds can't over-refund.
+- **Concurrency-safe numbering**: `MAX(id)+1` patterns in `BillingService::generateInvoiceNumber/PaymentNumber/RefundNumber` and `IpdService::generateIpdNumber` (and the IPD invoice `K360-INV-IPD-<id>`) race under concurrent inserts. New `app/Support/SequentialNumber::next($table, $prefix, $numberColumn)` computes `MAX(numeric-tail)+1` under a `lockForUpdate()` on the prefix range and retries on collision (backed by the unique constraints on `invoice_number`/`payment_number`/`refund_number`/`ipd_number`). Tests: `tests/Unit/SequentialNumberTest`.
+- Tests: +10 new (webhook routing ×2, overpayment ×1, sequential-number ×3, plus updated report fixtures). Suite now **424 pass / 1182 assertions**.
+- **Env note**: PHP is NOT preinstalled — install via apt (php8.4-cli + mbstring/xml/curl/zip/gd/bcmath/intl/sqlite3/readline). Composer from getcomposer.org. `php artisan migrate` hangs on the `--graceful` interactive prompt in CI — use `--force`. `php artisan test` (no `--no-interaction`). Frontend must be built (`npm run build`) or Livewire/Blade tests fail with "Vite manifest not found at public/build/manifest.json".
+
+
+
+## Task A — OCR & Speech Provider Integrations (COMPLETED)
+
+Config-driven, gracefully-degrading OCR and speech-to-text integrations behind the existing provider contracts.
+
+- **Providers** (all implement the existing `OCRProviderInterface` / `SpeechProviderInterface`):
+  - `app/Integrations/OCR/GoogleVisionOcrProvider.php` — `name()=GOOGLE_VISION`, `isConfigured()` <= `services.google_vision.api_key`, `extract()` POSTs to the Vision API (HTTP facade, no fake when unconfigured -> returns `{success:false, message:'Google Vision OCR provider not configured'}`).
+  - `app/Integrations/OCR/TesseractOcrProvider.php` — `name()=TESSERACT`, shells out to the `tesseract` binary via `Process`; `isConfigured()` <= binary resolvable (`services.tesseract.binary`, default `tesseract`).
+  - `app/Integrations/Speech/OpenAiWhisperProvider.php` — `name()=OPENAI_WHISPER`, `isConfigured()` <= `services.openai.api_key`, `transcribe()` POSTs multipart to the Whisper endpoint.
+  - `app/Integrations/Speech/WhisperCppProvider.php` — `name()=WHISPER_CPP`, shells out to the `whisper.cpp` binary + model path; `isConfigured()` <= binary + model both set (`services.whisper_cpp.*`).
+- **Config** (`config/services.php`): added `gemini`, `ocr_provider`, `speech_provider` keys plus per-provider blocks under `services.ocr.*` / `services.speech.*` / `services.tesseract.*` / `services.whisper_cpp.*`. `OCR_PROVIDER` / `SPEECH_PROVIDER` env selects the active provider (`google_vision|tesseract`, `openai|whisper_cpp`).
+- **AppServiceProvider**: binds `OCRProviderInterface` / `SpeechProviderInterface` to the config-selected concrete provider (mirrors the GeminiProvider pattern). Both `OcrService` and `SpeechService` registered as singletons.
+- **Orchestration services** (tenant-scoped + audit-logged wrappers):
+  - `app/Services/Documents/OcrService.php` — `extractFromDocument(Document)`: calls the provider, on success stamps `metadata.ocr_text` / `ocr_provider` / `ocr_extracted_at` onto the document; always records `document.ocr_extracted` / `document.ocr_failed` audit logs.
+  - `app/Services/Documents/SpeechService.php` — `transcribeFromDocument(Document)`: same shape, stamps `metadata.transcription` / `transcription_provider` / `transcribed_at`; audits `document.speech_transcribed` / `document.speech_transcribe_failed`.
+- **AuditService signature**: `record(string $action, string $category, array{before?:array, after?:array} $changes, ?Model $auditable = null)`.
+- Tests: `tests/Feature/Documents/OcrAndSpeechProviderTest` — 17 tests (interface resolution, config-driven switching, not-configured degrade, orchestration success/failure + audit + metadata stamping; happy path uses in-test `FakeOcrProvider`/`FakeSpeechProvider` to avoid real HTTP). Suite: **539 pass / 1453 assertions**.
+- **Graceful-degrade invariant preserved**: providers report `isConfigured()=false` and return `{success:false}` when creds/binary absent — app boots without any OCR/Speech keys, no faked success.
+
+## Task B — AI Governance API & Approval Board (COMPLETED)
+
+Exposed the existing AI draft->approve governance flow as a REST API + a Livewire approval board, enforcing the "AI output is draft-only until a practitioner signs off" invariant.
+
+- **Policy**: `app/Policies/AiRequestPolicy.php` — `viewAny`/`view`/`create`/`approve`/`reject` gated by `Permissions::AI_USE` (CLINIC_OWNER + DOCTOR); Super Admin bypasses; `view`/`approve`/`reject` enforce tenant isolation (`$aiRequest->tenant_id === $user->tenant_id`). Auto-discovered by `<Model>Policy` naming — no `Gate::policy()` registration needed.
+- **API** (`/api/v1/ai-requests`):
+  - `GET` list (filters: `?status=DRAFT|APPROVED|REJECTED|ERROR|PENDING`, `?feature_key=`), `GET` show, `POST` generate, `POST /{id}/approve`, `POST /{id}/reject` (optional `reason`).
+  - Controller `app/Http/Controllers/Api/V1/AiRequestController.php` — `generate()` resolves the morph `contextable_type` (accepts short alias `patient`/`consultation`/`ipd_admission` OR the FQN) + `contextable_id`, delegates to `AIManager::generate()` which always returns `output_status` in {PENDING, DRAFT, ERROR} — **never APPROVED**. `approve()`/`reject()` delegate to `AIManager::approve()/reject()` (audit-logged).
+  - Form request `app/Http/Requests/Api/GenerateAiRequestRequest.php`, resource `app/Http/Resources/Api/AiRequestResource.php` (exposes `output_status`, `is_draft`, `is_approved`, `approved_at`, `approved_by`).
+- **Routes** (`routes/api.php`): added under the authenticated `throttle:api` group; controller imported. Names auto-prefixed `api.` by the group `->name('api.')`.
+- **Livewire board**: `app/Livewire/AI/AiApprovalBoard.php` + `resources/views/livewire/ai/approval-board.blade.php` — status-filtered list of AI drafts with inline Approve / Reject (reason prompt) actions; `authorize('approve'/'reject', $aiRequest)` per action. Web route `GET /ai/board` (`ai.board`), sidebar link added.
+- **Cross-tenant**: `AiRequest` uses `BelongsToTenant`, so route-model binding on `/ai-requests/{aiRequest}` returns **404** for other tenants (global scope hides the row before the policy runs). In Livewire, `findOrFail()` throws `ModelNotFoundException` for cross-tenant ids — caught in tests as the blocked path.
+- Tests: `tests/Feature/Api/ApiAiGovernanceTest` (10) + `tests/Feature/AI/AiApprovalBoardLivewireTest` (7). Invariants asserted: generate never returns APPROVED; receptionist (no `ai.use`) -> 403; cross-tenant view/approve -> 404; approve stamps `approved_at`/`approved_by`; reject stores `reason` in `error`. Audit `AllPagesAndFlowsAuditTest` extended with `/ai/board` page check. Suite: **539 pass / 1453 assertions**.
+
+
+## P0 #2 — Public Online Booking Payment Flow (COMPLETED)
+
+The public `/book` flow now takes and verifies payment BEFORE the appointment is confirmed (review item #2 — the last genuine P0 gap; the other Phase-1 items were already fixed in prior phases).
+
+- **`app/Services/Bookings/OnlineBookingService.php`** — orchestrates the full flow:
+  1. **Doctor validation** — `User::where('id', $user_id)->where('tenant_id', $tenant->id)->whereIn('role', [DOCTOR, PRACTITIONER, CLINIC_OWNER])->where('is_active', true)->firstOrFail()`. Rejects cross-tenant, inactive, and non-practitioner ids (404). **Note**: `users` has no `suspended_at` column — the active gate is `is_active` (the demo Tenant, not User, has `suspended_at`).
+  2. **Patient** — canonical `PatientService::register()` + `findDuplicateByPhone()` (permanent `K360-P-*` UID via PatientUidService; never `K360-PUB-*`).
+  3. **Appointment booked as SCHEDULED** — NOT confirmed. Confirmation requires verified payment.
+  4. **Invoice** — `BillingService::createInvoice(['appointment_id' => ...])` → `addInvoiceItem(CONSULTATION, fee)` → `issue()`. Fee/duration from `config('klinic.public_booking.*')`.
+  5. **Cashfree order** — `PaymentGatewayInterface::createOrder()` → persist `PaymentOrder` (payable = Invoice, keyed by `gateway_order_id` so the webhook resolves it) → return the hosted checkout URL.
+  6. **Graceful degrade** — when `gateway->isConfigured() === false` (dev/test), no invoice/order/payment is created; the appointment stays SCHEDULED with no payment required.
+- **`OnlineBookingController`** slimmed to delegate to `OnlineBookingService`; if `gateway_configured && payment_url`, `redirect()->away($payment_url)`; else show a status message. Removed the raw `exists:users,id` rule (the `firstOrFail()` tenant+role+active check is the real gate).
+- **Post-payment confirmation** — `WebhookProcessor` now calls `OnlineBookingService::confirmOnPayment($invoice->fresh())` after `BillingService::recordPayment()`. That method promotes the appointment to CONFIRMED **only when** `invoice->isPaid()`; no-op for invoices without an appointment link. This is the ONLY place an online booking is confirmed — never on browser redirect (browser redirects are never trusted; server-side `verify()` is the source of truth).
+- **Config** (`config/klinic.php` `public_booking` block): `tenant_id`, `consultation_fee_cents` (default 49900), `consultation_duration_minutes` (30), `return_url`. The `KLINIC_PUBLIC_BOOKING_TENANT_ID` env replaces the old `klinic360.public_booking_tenant_id` (kept the `klinic.public_booking.tenant_id` key).
+- **Tests** (`tests/Feature/Bookings/OnlineBookingPaymentTest` — 7): gateway-unconfigured → appointment SCHEDULED, no invoice; gateway-configured → invoice ISSUED + PaymentOrder CREATED + payment_url + appointment still SCHEDULED; webhook verified → appointment CONFIRMED + invoice PAID + payment SUCCESS; webhook not-verified → appointment stays SCHEDULED; cross-tenant / inactive / non-practitioner doctor → ModelNotFoundException (404). The webhook test swaps BOTH the `PaymentGatewayInterface` binding (for `createOrder` during booking) AND the concrete `CashfreePaymentProvider` binding (for `verifyWebhookSignature` + `verify()` during webhook processing — `WebhookProcessor` constructor-injects the concrete class, not the interface).
+- Suite: **546 pass / 1475 assertions** (was 539; +7).
+
+### Review-item status summary (Phase 1 of the review's recommended order)
+- #1 Webhook wiring — already done (WebhookController → WebhookProcessor).
+- #2 Public booking payment flow — **this phase** (book SCHEDULED → Cashfree order → webhook/server-verify → CONFIRMED).
+- #3 Patient UID — already done (PatientService::register + PatientUidService).
+- #4 Doctor validation — already done (tenant + role + is_active firstOrFail); refined to `is_active` (not the non-existent `suspended_at`).
+- #5 Appointment concurrency — already done (User::whereKey lockForUpdate + overlap lockForUpdate).
+- #6 Invoice locking — already done (Invoice::lockForUpdate()->find).
+- #7 Overpayment — already done (amount > currentDue throws).
+- #8 Payment status vocab — already done (SUCCESS; ReportService uses SUCCESS).
+- #9 Invoice status vocab — already done (DRAFT, ISSUED, PARTIALLY_PAID, PAID, REFUNDED, VOID).
+- #10 Cash register — already done (CashRegisterService).
+- #11 Expense — already done (ExpenseService).
+- P2 MySQL #1/#2, number generation — already done (driver-aware CONCAT/TIMESTAMPDIFF, SequentialNumber).
+
+## PB2 — Events / Listeners / Jobs for async notifications (COMPLETED)
+
+Before this phase the app had **no domain events** — `NotificationService::sendOnChannel()` ran synchronously in the request, blocking on WhatsApp/SMS/email/AI provider calls. Now provider calls happen off the request path.
+
+- **Events** (`app/Events/`): `AppointmentBooked`, `AppointmentConfirmed`, `PaymentRecorded` — each carries the model + a `variables()` map (`patient_name`, `doctor_name`, `appointment_date`, `start_time`, `amount`, `currency`, `invoice_number`, `payment_number`, …).
+- **Dispatch sites** (all post-transaction, so listeners only fire on commit):
+  - `AppointmentService::book()` → `AppointmentBooked::dispatch(...)` after the DB transaction commits.
+  - `AppointmentService::changeStatus()` → `AppointmentConfirmed::dispatch(...)` ONLY on a real `SCHEDULED→CONFIRMED` transition (guarded by `$status === 'CONFIRMED' && $current !== 'CONFIRMED'` so a no-op re-confirm doesn't spam a notification).
+  - `BillingService::recordPayment()` → `PaymentRecorded::dispatch(...)` after the payment is recorded as `SUCCESS` (failed/partial-that-throws paths never dispatch).
+- **Listeners** (`app/Listeners/`): `SendAppointmentBookedNotification`, `SendAppointmentConfirmedNotification`, `SendPaymentReceiptNotification`. Each resolves the patient via the appointment/invoice, calls `NotificationService::sendOnChannel($patient, $eventKey, 'in_app', $vars)` to create a `NotificationDelivery` row, and — when the delivery is still `PENDING`/`FAILED` (i.e. an external channel needs a provider call) — dispatches `SendNotificationJob`.
+- **Job** (`app/Jobs/SendNotificationJob.php`): `ShouldQueue`, constructs with `deliveryId, eventKey, channel, variables`; `handle()` re-resolves `TenantContext` from the delivery's notifiable, then calls `NotificationService::sendOnChannel()`. Public props so `Queue::assertPushed(fn ($job) => $job->deliveryId === ...)` works in tests.
+- **Wiring**: `AppServiceProvider::boot()` registers three `Event::listen(...)` mappings (explicit, not `#[AsEventListener]`, so the registration is grep-able). Added `use Illuminate\Support\Facades\Event`.
+- **Templates** (`NotificationTemplateSeeder`): the existing `appointment.confirmation` (sms/whatsapp/email) and `payment.received` (sms) keys are reused — added `in_app` rows for both (`appointment.confirmation` + `payment.received`) so the in-app channel has a template to render. `DatabaseSeeder` already calls `NotificationTemplateSeeder`.
+- **TenantContext gotcha**: `TenantContext` is a singleton bound to the container — its methods (`isSet()`, `id()`) are INSTANCE methods, NOT static. In listeners use `app(TenantContext::class)->isSet()`, never `TenantContext::isSet()`.
+- **Test queue driver**: `phpunit.xml` sets `QUEUE_CONNECTION=sync`, so dispatched jobs run inline during tests. `Event::fake([OnlySpecificEvents])` still lets the real event's listener run (only the faked ones are suppressed). To assert the in-app path: don't fake queues — assert the `NotificationDelivery` reaches `SENT`. To assert job dispatch for a FAILED external delivery, `Queue::fake()` + create a `FAILED` delivery + `SendNotificationJob::dispatch()` + `Queue::assertPushed(...)`.
+- **ShouldRenderJsonWhen**: see PB3 below — the public slots endpoint is a web route but must return JSON. `bootstrap/app.php` `shouldRenderJsonWhen` now returns true when `$request->is('api/*') || $request->expectsJson()`.
+- Tests: `tests/Feature/Notifications/AsyncNotificationEventsTest` — 8 tests. Suite now 554 pass / 1489 assertions.
+
+## PB3 — Public booking real-slots API endpoint (COMPLETED)
+
+The public `/book` form previously used a free-text `<input type="time">` with no link to actual availability. Now it fetches real bookable slots.
+
+- **Endpoint**: `GET /book/slots` (`OnlineBookingController::slots`, route `online-booking.slots`) — unauthenticated. Validates `user_id` (required int) + `date` (required date, `after_or_equal:today`). Resolves the public-booking tenant via `resolveTenant()`, sets `TenantContext`, then `User::where('id', ...)->where('tenant_id', $tenant->id)->whereIn('role', [...])->where('is_active', true)->firstOrFail()`. Returns `{data: [{start, end, available}]}` from `AppointmentService::availableSlots()`.
+- **Security**: the doctor MUST belong to the resolved public tenant and be an active practitioner — otherwise `firstOrFail()` → 404. No cross-tenant slot enumeration. Inactive/non-practitioner roles → 404 (not a leaky 200 with empty data).
+- **Reuses the real engine**: `AppointmentService::availableSlots()` already handles `DoctorAvailability` (day-of-week windows) + booked-appointment overlap (15-min slot grid; a slot is `available=false` if any non-cancelled appointment overlaps `[start, end)`). The SQLite date-storage gotcha (Phase 7) is handled by `whereBetween('appointment_date', [dayStart, dayEnd])` inside the service.
+- **Slots vs appointments overlap**: a booking `09:15–09:45` marks BOTH `09:15–09:30` and `09:30–09:45` unavailable (the overlap check is `b.start_time < slotEnd && b.end_time > slotStart`). `09:00–09:15` stays available (back-to-back, no overlap).
+- **shouldRenderJsonWhen fix**: `bootstrap/app.php` exception handler now renders JSON when `$request->is('api/*') || $request->expectsJson()`. Without this, a `ValidationException` on the web `/book/slots` route returned a 302 HTML redirect even for `getJson()` calls (the old rule only matched `api/*` paths). This is the correct general behaviour — any client sending `Accept: application/json` gets JSON errors.
+- **Blade** (`resources/views/online-booking/show.blade.php`): the time input is now read-only; doctor (`#booking-doctor`) + date (`#booking-date`) changes trigger a `fetch('/book/slots?...')` that renders clickable slot chips (available = teal border, booked = greyed/strikethrough + disabled). Selecting a chip fills `#booking-time`. Vanilla JS (no Alpine) — the public form is a plain Blade page outside the app shell.
+- `show()` also filters `doctors` to `is_active = true` (inactive practitioners are hidden from public booking).
+- Tests: `tests/Feature/Bookings/OnlineBookingSlotsTest` — 9 tests (bookable slots, overlap marks slots unavailable, no working hours → empty, cross-tenant doctor 404, inactive doctor 404, non-practitioner 404, required-field validation 422, past-date 422, show view renders slot picker). Suite now 563 pass / 1518 assertions.

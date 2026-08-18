@@ -10,6 +10,7 @@ use App\Models\PaymentOrder;
 use App\Models\PaymentWebhook;
 use App\Services\Audit\AuditService;
 use App\Services\Billing\BillingService;
+use App\Services\Bookings\OnlineBookingService;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
@@ -33,6 +34,7 @@ class WebhookProcessor
         private readonly CashfreePaymentProvider $gateway,
         private readonly BillingService $billing,
         private readonly AuditService $audit,
+        private readonly OnlineBookingService $bookings,
     ) {}
 
     /**
@@ -118,6 +120,11 @@ class WebhookProcessor
                     'gateway_payment_id' => $verification['gateway_payment_id'] ?? $gatewayPaymentId,
                     'gateway_order_id' => $verification['gateway_order_id'] ?? null,
                 ]);
+
+                // Promote the linked appointment to CONFIRMED now that payment
+                // is verified server-side. Only applies to online bookings
+                // (invoice→appointment link); other invoices are a no-op.
+                $this->bookings->confirmOnPayment($invoice->fresh());
             }
 
             $webhook->update(['processed' => true, 'processed_at' => now()]);

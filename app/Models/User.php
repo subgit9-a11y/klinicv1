@@ -5,6 +5,7 @@ namespace App\Models;
 use App\Services\Auth\PermissionService;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
 use Illuminate\Database\Eloquent\Attributes\Hidden;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
@@ -14,7 +15,9 @@ use Illuminate\Notifications\Notifiable;
 #[Fillable([
     'tenant_id', 'name', 'email', 'phone', 'password', 'role',
     'permissions', 'two_factor_secret', 'two_factor_confirmed_at',
-    'two_factor_recovery_codes', 'is_active', 'avatar', 'designation',
+            'two_factor_recovery_codes', 'is_active', 'avatar', 'designation',
+        'specialization', 'registration_number', 'medicine_system',
+        'consultation_fee_cents', 'followup_fee_cents',
 ])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'permissions'])]
 class User extends Authenticatable implements MustVerifyEmail
@@ -97,6 +100,17 @@ class User extends Authenticatable implements MustVerifyEmail
     {
         return ! is_null($this->two_factor_secret)
             && ! is_null($this->two_factor_confirmed_at);
+    }
+
+    /** Scope to users with a given role. */
+    public function scopeRole(Builder $query, string $role): Builder
+    {
+        return $query->where('role', $role);
+    }
+
+    public function consultationFee(): int
+    {
+        return $this->consultation_fee_cents ?? 0;
     }
 
     public function fullName(): string

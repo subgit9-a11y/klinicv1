@@ -9,6 +9,7 @@ use App\Models\InvoiceItem;
 use App\Models\IpdAdmission;
 use App\Models\IpdBed;
 use App\Models\IpdDischargeSummary;
+use App\Support\SequentialNumber;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -178,7 +179,7 @@ class IpdService
 
     private function generateIpdNumber(): string
     {
-        return 'K360-IPD-'.str_pad((string) (IpdAdmission::max('id') + 1), 6, '0', STR_PAD_LEFT);
+        return SequentialNumber::next('ipd_admissions', 'K360-IPD', 'ipd_number');
     }
 
     private function generateIpdInvoice(IpdAdmission $admission, ?IpdBed $bed, int $days, Carbon $dischargedAt): void
@@ -187,7 +188,7 @@ class IpdService
             'tenant_id' => $admission->tenant_id,
             'patient_id' => $admission->patient_id,
             'ipd_admission_id' => $admission->id,
-            'invoice_number' => 'K360-INV-IPD-'.$admission->id,
+            'invoice_number' => SequentialNumber::next('invoices', 'K360-INV', 'invoice_number'),
             'status' => 'DRAFT',
             'source' => 'IPD',
             'currency' => 'INR',

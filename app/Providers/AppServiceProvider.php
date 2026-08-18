@@ -4,16 +4,32 @@ namespace App\Providers;
 
 use App\Contracts\AIProviderInterface;
 use App\Contracts\EmailProviderInterface;
+use App\Contracts\OCRProviderInterface;
 use App\Contracts\PaymentGatewayInterface;
 use App\Contracts\SmsProviderInterface;
+use App\Contracts\SpeechProviderInterface;
 use App\Contracts\StorageProviderInterface;
 use App\Contracts\SubscriptionProviderInterface;
 use App\Contracts\VideoProviderInterface;
 use App\Contracts\WhatsAppProviderInterface;
+use App\Integrations\OCR\GoogleVisionOcrProvider;
+use App\Integrations\OCR\TesseractOcrProvider;
+use App\Integrations\Speech\OpenAiWhisperProvider;
+use App\Integrations\Speech\WhisperCppProvider;
 use App\Models\IpdAdmission;
+use App\Models\IpdBed;
+use App\Models\IpdRoom;
+use App\Models\IpdWard;
+use App\Models\Plan;
+use App\Models\Subscription;
 use App\Models\TreatmentBooking;
+use App\Models\TreatmentRoom;
+use App\Models\TreatmentService;
 use App\Models\User;
+use App\Policies\IpdConfigurationPolicy;
 use App\Policies\IpdPolicy;
+use App\Policies\SubscriptionPolicy;
+use App\Policies\TreatmentCatalogPolicy;
 use App\Policies\TreatmentPolicy;
 use App\Services\AI\AIContextBuilder;
 use App\Services\AI\AIManager;
@@ -23,6 +39,8 @@ use App\Services\Auth\PermissionService;
 use App\Services\Auth\TokenService;
 use App\Services\Auth\TwoFactorService;
 use App\Services\Billing\BillingService;
+use App\Services\Billing\CashRegisterService;
+use App\Services\Billing\ExpenseService;
 use App\Services\Documents\DocumentService;
 use App\Services\Documents\PdfService;
 use App\Services\EMR\ConsultationService;
@@ -30,6 +48,7 @@ use App\Services\EMR\PrescriptionService;
 use App\Services\EMR\VitalsService;
 use App\Services\IPD\IpdService;
 use App\Services\Notifications\NotificationService;
+use App\Services\Notifications\NotificationTemplateService;
 use App\Services\Notifications\Providers\MetaWhatsAppProvider;
 use App\Services\Notifications\Providers\Msg91SmsProvider;
 use App\Services\Notifications\Providers\ResendEmailProvider;
@@ -44,9 +63,11 @@ use App\Services\Plans\PlanService;
 use App\Services\Queue\QueueService;
 use App\Services\Reports\ReportService;
 use App\Services\Storage\S3StorageProvider;
+use App\Services\Telemedicine\TeleconsultationService;
 use App\Services\Tenancy\TenantContext;
 use App\Services\Treatments\TreatmentBookingService;
 use App\Services\Video\GoogleMeetProvider;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PragmaRX\Google2FA\Google2FA;
@@ -70,6 +91,9 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(TreatmentBookingService::class);
         $this->app->singleton(IpdService::class);
         $this->app->singleton(BillingService::class);
+        $this->app->singleton(CashRegisterService::class);
+        $this->app->singleton(ExpenseService::class);
+        $this->app->singleton(TeleconsultationService::class);
 
         $this->app->singleton(CashfreePaymentProvider::class);
         $this->app->singleton(CashfreeSubscriptionProvider::class);
@@ -85,6 +109,12 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(Msg91SmsProvider::class);
         $this->app->singleton(ResendEmailProvider::class);
         $this->app->singleton(NotificationService::class);
+        $this->app->singleton(NotificationTemplateService::class);
+        $this->app->singleton(\App\Services\Staff\DoctorService::class);
+        $this->app->singleton(\App\Services\Treatments\TreatmentCatalogService::class);
+        $this->app->singleton(\App\Services\IPD\IpdConfigurationService::class);
+        $this->app->singleton(\App\Services\Billing\ReceiptService::class);
+        $this->app->singleton(\App\Services\Plans\PlanService::class);
 
         $this->app->bind(WhatsAppProviderInterface::class, MetaWhatsAppProvider::class);
         $this->app->bind(SmsProviderInterface::class, Msg91SmsProvider::class);
@@ -98,7 +128,29 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(S3StorageProvider::class);
         $this->app->singleton(DocumentService::class);
         $this->app->singleton(PdfService::class);
+        $this->app->singleton(\App\Services\Documents\OcrService::class);
+        $this->app->singleton(\App\Services\Documents\SpeechService::class);
+        $this->app->singleton(\App\Services\Bookings\OnlineBookingService::class);
         $this->app->bind(StorageProviderInterface::class, S3StorageProvider::class);
+
+        // OCR provider — config-driven (OCR_PROVIDER env: google_vision|tesseract).
+        // Both implementations degrade gracefully when unconfigured, so the app
+        // boots without any OCR credentials. The resolved provider may still report
+        // isConfigured() === false; callers must check before relying on results.
+        $this->app->singleton(OCRProviderInterface::class, function ($app) {
+            return match ((string) config('services.ocr_provider', 'google_vision')) {
+                'tesseract' => $app->make(TesseractOcrProvider::class),
+                default => $app->make(GoogleVisionOcrProvider::class),
+            };
+        });
+
+        // Speech-to-text provider — config-driven (SPEECH_PROVIDER env: openai|whisper_cpp).
+        $this->app->singleton(SpeechProviderInterface::class, function ($app) {
+            return match ((string) config('services.speech_provider', 'openai')) {
+                'whisper_cpp' => $app->make(WhisperCppProvider::class),
+                default => $app->make(OpenAiWhisperProvider::class),
+            };
+        });
 
         $this->app->singleton(ReportService::class);
 
@@ -128,8 +180,33 @@ class AppServiceProvider extends ServiceProvider
         // TreatmentBooking's policy is named TreatmentPolicy (not the
         // auto-discovered TreatmentBookingPolicy), so register it explicitly.
         Gate::policy(TreatmentBooking::class, TreatmentPolicy::class);
+        Gate::policy(TreatmentService::class, TreatmentCatalogPolicy::class);
+        Gate::policy(TreatmentRoom::class, TreatmentCatalogPolicy::class);
+        Gate::policy(IpdWard::class, IpdConfigurationPolicy::class);
+        Gate::policy(IpdRoom::class, IpdConfigurationPolicy::class);
+        Gate::policy(IpdBed::class, IpdConfigurationPolicy::class);
+
+        // Plans/Subscriptions share SubscriptionPolicy with non-standard method names.
+        Gate::policy(Plan::class, SubscriptionPolicy::class);
+        Gate::policy(Subscription::class, SubscriptionPolicy::class);
 
         // IpdAdmission's policy is named IpdPolicy (not IpdAdmissionPolicy).
         Gate::policy(IpdAdmission::class, IpdPolicy::class);
+
+        // Async notification wiring: domain events dispatch queued jobs so
+        // WhatsApp/SMS/email/AI provider calls never block the request path.
+        // See app/Events, app/Listeners, app/Jobs.
+        Event::listen(
+            \App\Events\AppointmentBooked::class,
+            \App\Listeners\SendAppointmentBookedNotification::class
+        );
+        Event::listen(
+            \App\Events\AppointmentConfirmed::class,
+            \App\Listeners\SendAppointmentConfirmedNotification::class
+        );
+        Event::listen(
+            \App\Events\PaymentRecorded::class,
+            \App\Listeners\SendPaymentReceiptNotification::class
+        );
     }
 }

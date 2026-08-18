@@ -27,6 +27,31 @@ class ReportService
     }
 
     /**
+     * Database-agnostic expression for the difference in minutes
+     * between two datetime columns (end - start). SQLite lacks
+     * TIMESTAMPDIFF; MySQL lacks julianday, so the expression is chosen
+     * per driver.
+     */
+    private function minutesDiff(string $end, string $start): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(julianday({$end}) - julianday({$start}) AS FLOAT) * 24 * 60"
+            : "TIMESTAMPDIFF(MINUTE, {$start}, {$end})";
+    }
+
+    /**
+     * Database-agnostic expression for the difference in days between
+     * two datetime columns (end - start), as a float so fractional days
+     * are preserved for the length-of-stay average.
+     */
+    private function daysDiff(string $end, string $start): string
+    {
+        return DB::connection()->getDriverName() === 'sqlite'
+            ? "CAST(julianday({$end}) - julianday({$start}) AS FLOAT)"
+            : "TIMESTAMPDIFF(SECOND, {$start}, {$end}) / 86400.0";
+    }
+
+    /**
      * Operational: appointment counts by status for a date range.
      *
      * @return array<string, int>
@@ -57,6 +82,10 @@ class ReportService
     /**
      * Operational: average wait time per appointment (minutes).
      * Wait = from checked_in_at to completed_at.
+     *
+     * Uses a database-agnostic minute difference so the query works on
+     * both SQLite (dev) and MySQL/MariaDB (prod). julianday() is
+     * SQLite-only and would fail on MySQL.
      */
     public function averageWaitTime(Carbon $from, Carbon $to): float
     {
@@ -65,9 +94,9 @@ class ReportService
         $avg = DB::table('appointments')
             ->whereNotNull('checked_in_at')
             ->whereNotNull('completed_at')
-            ->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])
+            ->whereBetween('appointment_date', [$from->copy()->startOfDay(), $to->copy()->endOfDay()])
             ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
-            ->selectRaw('AVG(CAST(julianday(completed_at) - julianday(checked_in_at) AS FLOAT) * 24 * 60) as avg_minutes')
+            ->selectRaw('AVG('.$this->minutesDiff('completed_at', 'checked_in_at').') as avg_minutes')
             ->value('avg_minutes');
 
         return round((float) ($avg ?? 0), 1);
@@ -89,7 +118,7 @@ class ReportService
 
         $totalRevenue = (clone $base)->whereIn('status', ['PAID', 'PARTIALLY_PAID'])->sum('total_cents');
         $totalCollected = (clone $base)->sum('amount_paid_cents');
-        $totalOutstanding = (clone $base)->whereIn('status', ['DUE', 'PARTIALLY_PAID', 'OVERDUE'])->sum('amount_due_cents');
+        $totalOutstanding = (clone $base)->whereIn('status', ['ISSUED', 'PARTIALLY_PAID'])->sum('amount_due_cents');
         $invoiceCount = (clone $base)->count();
 
         return [
@@ -103,6 +132,10 @@ class ReportService
     /**
      * Financial: collections by payment method (in rupees).
      *
+     * Successful payments are recorded with status SUCCESS (see
+     * BillingService::recordPayment), not COMPLETED, so the filter must
+     * match that vocabulary or collections silently return zero.
+     *
      * @return array<string, float>
      */
     public function collectionsByMethod(Carbon $from, Carbon $to): array
@@ -111,7 +144,7 @@ class ReportService
 
         return DB::table('payments')
             ->select('method', DB::raw('sum(amount_cents) as total'))
-            ->where('status', 'COMPLETED')
+            ->where('status', 'SUCCESS')
             ->whereBetween('created_at', [$from, $to])
             ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
             ->groupBy('method')
@@ -179,7 +212,7 @@ class ReportService
         $avgLos = (clone $base)
             ->where('status', 'DISCHARGED')
             ->whereBetween('discharged_at', [$from, $to])
-            ->selectRaw('AVG(CAST(julianday(discharged_at) - julianday(admitted_at) AS FLOAT)) as avg_days')
+            ->selectRaw('AVG('.$this->daysDiff('discharged_at', 'admitted_at').') as avg_days')
             ->value('avg_days');
 
         return [

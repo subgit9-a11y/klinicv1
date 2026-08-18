@@ -24,4 +24,39 @@ class TeleconsultationPolicy
         return $teleconsultation->tenant_id === $user->tenant_id
             && $user->hasPermission(Permissions::APPOINTMENTS_VIEW);
     }
+
+    public function create(User $user): bool
+    {
+        return $user->isSuperAdmin() || $user->hasPermission(Permissions::APPOINTMENTS_CREATE);
+    }
+
+    public function start(User $user, Teleconsultation $teleconsultation): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $teleconsultation->tenant_id === $user->tenant_id
+            && $user->hasPermission(Permissions::APPOINTMENTS_EDIT);
+    }
+
+    public function end(User $user, Teleconsultation $teleconsultation): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $teleconsultation->tenant_id === $user->tenant_id
+            && $user->hasPermission(Permissions::APPOINTMENTS_EDIT);
+    }
+
+    public function cancel(User $user, Teleconsultation $teleconsultation): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return $teleconsultation->tenant_id === $user->tenant_id
+            && $user->hasPermission(Permissions::APPOINTMENTS_CANCEL);
+    }
 }

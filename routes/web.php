@@ -29,6 +29,7 @@ Route::get('/', function () {
 
 // Guest-accessible online consultation booking.
 Route::get('/book', [OnlineBookingController::class, 'show'])->name('online-booking.show');
+Route::get('/book/slots', [OnlineBookingController::class, 'slots'])->name('online-booking.slots');
 Route::post('/book', [OnlineBookingController::class, 'store'])->name('online-booking.store');
 
 Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(function () {
@@ -70,6 +71,9 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
     Route::post('/ai/generate', [AiController::class, 'generate'])->name('ai.generate');
     Route::post('/ai/{aiRequest}/approve', [AiController::class, 'approve'])->name('ai.approve');
     Route::post('/ai/{aiRequest}/reject', [AiController::class, 'reject'])->name('ai.reject');
+
+    // Livewire AI governance board (draft → approve/reject).
+    Route::get('/ai/board', App\Livewire\AI\AiApprovalBoard::class)->name('ai.board');
 
     Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
     Route::post('/notifications/{delivery}/read', [NotificationController::class, 'markRead'])->name('notifications.read');

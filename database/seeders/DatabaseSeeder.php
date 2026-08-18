@@ -11,6 +11,7 @@ class DatabaseSeeder extends Seeder
         $this->call([
             PlanSeeder::class,
             SystemSettingsSeeder::class,
+            NotificationTemplateSeeder::class,
             AdminUserSeeder::class,
         ]);
     }

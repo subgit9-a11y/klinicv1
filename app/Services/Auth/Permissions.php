@@ -81,6 +81,18 @@ final class Permissions
 
     public const AI_PROMPTS_MANAGE = 'ai.prompts.manage';
 
+    // Notification templates
+    public const NOTIFICATIONS_MANAGE = 'notifications.manage';
+
+    // Staff management (doctor onboarding, availability)
+    public const STAFF_MANAGE = 'staff.manage';
+
+    // Treatment catalogue configuration
+    public const TREATMENTS_MANAGE = 'treatments.manage';
+
+    // IPD configuration (wards/rooms/beds)
+    public const IPD_CONFIGURE = 'ipd.configure';
+
     // Documents
     public const DOCUMENTS_VIEW = 'documents.view';
 
@@ -107,6 +119,10 @@ final class Permissions
             'billing' => self::billing(),
             'ai' => self::ai(),
             'documents' => self::documents(),
+            'notifications' => self::notifications(),
+            'staff' => self::staff(),
+            'treatments' => array_merge(self::treatments(), [self::TREATMENTS_MANAGE]),
+            'ipd' => array_merge(self::ipd(), [self::IPD_CONFIGURE]),
         ];
 
         return $groups;
@@ -185,5 +201,17 @@ final class Permissions
         return [
             self::DOCUMENTS_VIEW, self::DOCUMENTS_UPLOAD, self::DOCUMENTS_DELETE,
         ];
+    }
+
+    /** @return list<string> */
+    public static function notifications(): array
+    {
+        return [self::NOTIFICATIONS_MANAGE];
+    }
+
+    /** @return list<string> */
+    public static function staff(): array
+    {
+        return [self::STAFF_MANAGE];
     }
 }

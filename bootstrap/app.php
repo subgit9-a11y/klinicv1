@@ -40,7 +40,10 @@ return Application::configure(basePath: dirname(__DIR__))
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         $exceptions->shouldRenderJsonWhen(
-            fn (Request $request) => $request->is('api/*'),
+            // Render JSON for the API surface OR any request that explicitly
+            // asks for JSON (e.g. the public booking slots endpoint under
+            // /book/slots, which is a web route but fetched via fetch()).
+            fn (Request $request) => $request->is('api/*') || $request->expectsJson(),
         );
     })
     ->withSchedule(function (Schedule $schedule): void {

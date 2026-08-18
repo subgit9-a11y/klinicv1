@@ -200,4 +200,46 @@ class CashfreeIntegrationTest extends TestCase
         $this->assertFalse($result['processed']);
         $this->assertSame('Missing event/order ID', $result['message']);
     }
+
+    // --- Route wiring: the public webhook endpoint must delegate to the
+    //     WebhookProcessor (not return a stub "Webhook received" body). ---
+
+    public function test_webhook_endpoint_delegates_to_processor_and_stores_payload(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+
+        $payload = ['type' => 'PAYMENT_SUCCESS_WEBHOOK', 'data' => ['order' => ['order_id' => 'evt-route-001']]];
+
+        // Signature is invalid → processor stores the webhook but does not
+        // mark it processed. The endpoint must still respond 200 (to stop
+        // Cashfree from retrying) and the payload must have reached the
+        // processor (a stored payment_webhooks row proves delegation).
+        $response = $this->postJson('/api/v1/webhooks/payments', $payload, [
+            'X-Cf-Signature' => 'invalid-signature',
+        ]);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('processed', false);
+        $response->assertJsonPath('message', 'Signature verification failed');
+
+        $this->assertDatabaseHas('payment_webhooks', [
+            'event_id' => 'evt-route-001',
+            'processed' => false,
+        ]);
+    }
+
+    public function test_webhook_endpoint_rejects_missing_event_id(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+
+        $response = $this->postJson('/api/v1/webhooks/payments', [
+            'type' => 'PAYMENT_SUCCESS_WEBHOOK',
+        ], ['X-Cf-Signature' => 'sig']);
+
+        $response->assertStatus(200);
+        $response->assertJsonPath('processed', false);
+        $response->assertJsonPath('message', 'Missing event/order ID');
+    }
 }

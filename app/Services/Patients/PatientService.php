@@ -82,7 +82,7 @@ class PatientService
         $query->where(function ($q) use ($term) {
             $q->where('k360_uid', 'like', $term.'%')
                 ->orWhere('phone', 'like', '%'.$term.'%')
-                ->orWhereRaw('lower(first_name || " " || last_name) like ?', ['%'.strtolower($term).'%'])
+                ->orWhereRaw('lower('.(DB::connection()->getDriverName() === 'sqlite' ? 'first_name || " " || last_name' : 'CONCAT(first_name, " ", COALESCE(last_name, ""))').') like ?', ['%'.strtolower($term).'%'])
                 ->orWhere('abha_id', 'like', $term.'%');
         });
 

@@ -69,6 +69,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
             '/patients/'.$patient->id, '/patients/'.$patient->id.'/edit', '/profile',
             '/treatments', '/prescriptions', '/payments', '/settings',
             '/ipd', '/billing', '/documents', '/reports', '/notifications', '/ai',
+            '/ai/board',
         ];
 
         foreach ($pages as $uri) {

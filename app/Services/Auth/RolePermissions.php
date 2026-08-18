@@ -27,6 +27,10 @@ final class RolePermissions
             Permissions::BILLING_VIEW, Permissions::BILLING_CREATE, Permissions::BILLING_REFUND, Permissions::CASH_REGISTER_MANAGE,
             Permissions::AI_USE, Permissions::AI_PROMPTS_MANAGE,
             Permissions::DOCUMENTS_VIEW, Permissions::DOCUMENTS_UPLOAD, Permissions::DOCUMENTS_DELETE,
+            Permissions::NOTIFICATIONS_MANAGE,
+            Permissions::STAFF_MANAGE,
+            Permissions::TREATMENTS_MANAGE,
+            Permissions::IPD_CONFIGURE,
         ],
 
         'DOCTOR' => [
