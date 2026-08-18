@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Plans;
 
-use App\Models\Plan;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\Plans\FeatureService;

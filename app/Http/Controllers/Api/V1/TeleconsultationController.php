@@ -8,7 +8,11 @@ use App\Http\Controllers\Controller;
 use App\Http\Resources\Api\TeleconsultationResource;
 use App\Models\Teleconsultation;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
+use Illuminate\Http\Response;
 
+/**
+ * @group Teleconsultations
+ */
 class TeleconsultationController extends Controller
 {
     public function index(): AnonymousResourceCollection
@@ -25,7 +29,7 @@ class TeleconsultationController extends Controller
         return TeleconsultationResource::collection($teleconsultations);
     }
 
-    public function show(Teleconsultation $teleconsultation): \Illuminate\Http\Response
+    public function show(Teleconsultation $teleconsultation): Response
     {
         $this->authorize('view', $teleconsultation);
 

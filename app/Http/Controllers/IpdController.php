@@ -5,17 +5,13 @@ declare(strict_types=1);
 namespace App\Http\Controllers;
 
 use App\Models\IpdAdmission;
-use App\Models\IpdBed;
 use App\Models\IpdWard;
-use App\Models\Patient;
 use App\Services\IPD\IpdService;
 use Illuminate\Http\Request;
 
 class IpdController extends Controller
 {
-    public function __construct(private readonly IpdService $ipd)
-    {
-    }
+    public function __construct(private readonly IpdService $ipd) {}
 
     public function index()
     {

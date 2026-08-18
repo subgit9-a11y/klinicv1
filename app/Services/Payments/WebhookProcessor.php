@@ -6,6 +6,7 @@ namespace App\Services\Payments;
 
 use App\Models\Invoice;
 use App\Models\Payment;
+use App\Models\PaymentOrder;
 use App\Models\PaymentWebhook;
 use App\Services\Audit\AuditService;
 use App\Services\Billing\BillingService;
@@ -37,8 +38,7 @@ class WebhookProcessor
     /**
      * Process a Cashfree webhook payload.
      *
-     * @param array $payload
-     * @param string $signature  Raw signature from the webhook header
+     * @param  string  $signature  Raw signature from the webhook header
      * @return array{processed: bool, event_id: ?string, message: string}
      */
     public function process(array $payload, string $signature): array
@@ -78,8 +78,9 @@ class WebhookProcessor
         );
 
         // Verify the signature (if gateway is configured).
-        if ($this->gateway->isConfigured() && !$this->gateway->verifyWebhookSignature($payload, $signature)) {
+        if ($this->gateway->isConfigured() && ! $this->gateway->verifyWebhookSignature($payload, $signature)) {
             Log::warning('Cashfree webhook signature verification failed', ['event_id' => $eventId]);
+
             return ['processed' => false, 'event_id' => $eventId, 'message' => 'Signature verification failed'];
         }
 
@@ -90,17 +91,19 @@ class WebhookProcessor
 
         $verification = $this->gateway->verify($gatewayOrderId);
 
-        if (!$verification['verified']) {
+        if (! $verification['verified']) {
             $webhook->update(['processed' => true, 'processed_at' => now()]);
-            return ['processed' => false, 'event_id' => $eventId, 'message' => 'Payment not verified: ' . ($verification['message'] ?? 'unknown')];
+
+            return ['processed' => false, 'event_id' => $eventId, 'message' => 'Payment not verified: '.($verification['message'] ?? 'unknown')];
         }
 
         // Find the invoice via the PaymentOrder.
-        $order = \App\Models\PaymentOrder::where('gateway_order_id', $gatewayOrderId)->first();
+        $order = PaymentOrder::where('gateway_order_id', $gatewayOrderId)->first();
 
         if ($order === null) {
             Log::warning('Cashfree webhook: no matching PaymentOrder', ['gateway_order_id' => $gatewayOrderId]);
             $webhook->update(['processed' => true, 'processed_at' => now()]);
+
             return ['processed' => false, 'event_id' => $eventId, 'message' => 'No matching order found'];
         }
 

@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 class SendFollowupReminders extends Command
 {
     protected $signature = 'klinic:send-followup-reminders';
+
     protected $description = 'Send reminders for follow-ups due today';
 
     public function handle(NotificationService $notifications): int
@@ -27,7 +28,7 @@ class SendFollowupReminders extends Command
 
         $sent = 0;
         foreach ($followups as $followup) {
-            if (!$followup->patient) {
+            if (! $followup->patient) {
                 continue;
             }
             $notifications->send(
@@ -40,6 +41,7 @@ class SendFollowupReminders extends Command
         }
 
         $this->info("Sent {$sent} follow-up reminders.");
+
         return self::SUCCESS;
     }
 }

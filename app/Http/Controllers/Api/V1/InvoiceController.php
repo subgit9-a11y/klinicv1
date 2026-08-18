@@ -14,11 +14,12 @@ use Illuminate\Http\Request;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
+/**
+ * @group Billing
+ */
 class InvoiceController extends Controller
 {
-    public function __construct(private readonly BillingService $billingService)
-    {
-    }
+    public function __construct(private readonly BillingService $billingService) {}
 
     public function index(): AnonymousResourceCollection
     {

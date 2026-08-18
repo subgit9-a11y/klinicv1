@@ -22,13 +22,13 @@ class TokenService
     /**
      * Create a new token for a user.
      *
-     * @param array<int,string>|null $abilities
+     * @param  array<int,string>|null  $abilities
      * @return array{token: string, model: ApiToken}
      */
     public function create(User $user, string $name = 'default', ?array $abilities = null, ?\DateTimeInterface $expiresAt = null): array
     {
         $plain = Str::random(60);
-        $fullToken = self::PREFIX . $plain;
+        $fullToken = self::PREFIX.$plain;
 
         $token = ApiToken::create([
             'user_id' => $user->id,
@@ -49,7 +49,7 @@ class TokenService
      */
     public function validate(string $bearerToken): ?ApiToken
     {
-        if (!str_starts_with($bearerToken, self::PREFIX)) {
+        if (! str_starts_with($bearerToken, self::PREFIX)) {
             return null;
         }
 
@@ -58,7 +58,7 @@ class TokenService
         /** @var ApiToken|null $token */
         $token = ApiToken::where('token_hash', $hash)->first();
 
-        if (!$token) {
+        if (! $token) {
             return null;
         }
 

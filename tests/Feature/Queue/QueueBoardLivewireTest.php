@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Queue;
 
+use App\Livewire\Queue\QueueBoard;
+use App\Models\AppointmentToken;
 use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;
@@ -45,7 +47,7 @@ class QueueBoardLivewireTest extends TestCase
         $this->bookWalkIn($tenant, $doctor, $owner, '09:00');
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Queue\QueueBoard::class)
+            ->test(QueueBoard::class)
             ->assertStatus(200)
             ->assertSee(__('klinic360.queue.title'))
             ->assertSee('Dr. Queue')
@@ -60,7 +62,7 @@ class QueueBoardLivewireTest extends TestCase
         $this->bookWalkIn($tenant, $doctor, $owner, '09:15');
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Queue\QueueBoard::class)
+            ->test(QueueBoard::class)
             ->call('callNext', $doctor->id)
             ->assertDispatched('token-called');
 
@@ -77,7 +79,7 @@ class QueueBoardLivewireTest extends TestCase
         $doctor = User::factory()->forTenant($tenant)->role('DOCTOR')->create();
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Queue\QueueBoard::class)
+            ->test(QueueBoard::class)
             ->call('callNext', $doctor->id);
 
         // No exception, no dispatch — board should still be functional.
@@ -90,16 +92,16 @@ class QueueBoardLivewireTest extends TestCase
         $doctor = User::factory()->forTenant($tenant)->role('DOCTOR')->create();
         $this->bookWalkIn($tenant, $doctor, $owner, '09:00');
 
-        $token = \App\Models\AppointmentToken::first();
+        $token = AppointmentToken::first();
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Queue\QueueBoard::class)
+            ->test(QueueBoard::class)
             ->call('skip', $token->id);
 
         $this->assertSame('SKIPPED', $token->fresh()->status);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Queue\QueueBoard::class)
+            ->test(QueueBoard::class)
             ->call('recall', $token->id);
 
         $this->assertSame('WAITING', $token->fresh()->status);
@@ -111,17 +113,17 @@ class QueueBoardLivewireTest extends TestCase
         $doctor = User::factory()->forTenant($tenant)->role('DOCTOR')->create();
         $this->bookWalkIn($tenant, $doctor, $owner, '09:00');
 
-        $token = \App\Models\AppointmentToken::first();
+        $token = AppointmentToken::first();
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Queue\QueueBoard::class)
+            ->test(QueueBoard::class)
             ->call('callNext', $doctor->id);
 
-        $lw = Livewire::actingAs($owner)->test(\App\Livewire\Queue\QueueBoard::class);
+        $lw = Livewire::actingAs($owner)->test(QueueBoard::class);
         $lw->call('startConsultation', $token->id);
         $this->assertSame('IN_PROGRESS', $token->fresh()->status);
 
-        $lw = Livewire::actingAs($owner)->test(\App\Livewire\Queue\QueueBoard::class);
+        $lw = Livewire::actingAs($owner)->test(QueueBoard::class);
         $lw->call('complete', $token->id);
         $this->assertSame('DONE', $token->fresh()->status);
         $this->assertSame('COMPLETED', $token->fresh()->appointment->status);
@@ -140,7 +142,7 @@ class QueueBoardLivewireTest extends TestCase
         $receptionist = User::factory()->forTenant($tenant)->role('RECEPTIONIST')->create(['email_verified_at' => now()]);
 
         Livewire::actingAs($receptionist)
-            ->test(\App\Livewire\Queue\QueueBoard::class)
+            ->test(QueueBoard::class)
             ->assertSee(__('klinic360.queue.no_doctors'));
     }
 }

@@ -7,6 +7,7 @@ namespace App\Services\AI;
 use App\Contracts\AIProviderInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Storage;
 
 /**
  * Google Gemini AI provider.
@@ -22,7 +23,9 @@ use Illuminate\Support\Facades\Log;
 class GeminiProvider implements AIProviderInterface
 {
     private readonly string $apiKey;
+
     private readonly string $baseUrl;
+
     private readonly string $defaultModel;
 
     public function __construct()
@@ -48,7 +51,7 @@ class GeminiProvider implements AIProviderInterface
      */
     public function complete(string $prompt, array $context = [], ?string $model = null): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['content' => '', 'usage' => [], 'model' => $model ?? $this->defaultModel, 'duration_ms' => 0];
         }
 
@@ -108,7 +111,7 @@ class GeminiProvider implements AIProviderInterface
      */
     public function structured(string $prompt, array $context = [], ?string $model = null): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['data' => [], 'usage' => [], 'model' => $model ?? $this->defaultModel, 'duration_ms' => 0];
         }
 
@@ -168,7 +171,7 @@ class GeminiProvider implements AIProviderInterface
      */
     public function analyseMedia(string $disk, string $path, string $prompt, array $context = [], ?string $model = null): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['content' => '', 'usage' => [], 'model' => $model ?? $this->defaultModel, 'duration_ms' => 0];
         }
 
@@ -177,12 +180,12 @@ class GeminiProvider implements AIProviderInterface
 
         try {
             // Read the file from disk and base64-encode it for inline_data.
-            $content = \Illuminate\Support\Facades\Storage::disk($disk)->get($path);
+            $content = Storage::disk($disk)->get($path);
             if ($content === null) {
                 return ['content' => '', 'usage' => [], 'model' => $model, 'duration_ms' => 0];
             }
 
-            $mimeType = \Illuminate\Support\Facades\Storage::disk($disk)->mimeType($path);
+            $mimeType = Storage::disk($disk)->mimeType($path);
             $base64 = base64_encode($content);
 
             $payload = [

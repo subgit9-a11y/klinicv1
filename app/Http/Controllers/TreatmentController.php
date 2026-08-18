@@ -7,16 +7,15 @@ namespace App\Http\Controllers;
 use App\Models\TreatmentBooking;
 use App\Services\Treatments\TreatmentBookingService;
 use Illuminate\Http\Request;
+use Illuminate\Support\Carbon;
 
 class TreatmentController extends Controller
 {
-    public function __construct(private readonly TreatmentBookingService $treatments)
-    {
-    }
+    public function __construct(private readonly TreatmentBookingService $treatments) {}
 
     public function index(Request $request)
     {
-        $date = $request->input('date') ? \Illuminate\Support\Carbon::parse($request->input('date')) : now();
+        $date = $request->input('date') ? Carbon::parse($request->input('date')) : now();
         $bookings = TreatmentBooking::with(['patient', 'service', 'therapist', 'room'])
             ->whereDate('booking_date', $date)
             ->orderBy('start_time')

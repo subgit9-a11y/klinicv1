@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Appointments;
 
+use App\Livewire\Appointments\AppointmentBoard;
+use App\Models\Appointment;
 use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;
@@ -33,7 +35,7 @@ class AppointmentLivewireTest extends TestCase
         [$tenant, $owner] = $this->seedTenantAndUser();
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Appointments\AppointmentBoard::class)
+            ->test(AppointmentBoard::class)
             ->assertStatus(200)
             ->assertSee(__('klinic360.appointments.title'));
     }
@@ -45,7 +47,7 @@ class AppointmentLivewireTest extends TestCase
         $doctor = User::factory()->forTenant($tenant)->role('DOCTOR')->create(['name' => 'Dr. House']);
         $today = now()->format('Y-m-d');
 
-        \App\Models\Appointment::factory()->create([
+        Appointment::factory()->create([
             'tenant_id' => $tenant->id,
             'patient_id' => $patient->id,
             'user_id' => $doctor->id,
@@ -59,7 +61,7 @@ class AppointmentLivewireTest extends TestCase
         ]);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Appointments\AppointmentBoard::class)
+            ->test(AppointmentBoard::class)
             ->set('date', $today)
             ->assertSee('10:00')
             ->assertSee($patient->first_name)
@@ -73,7 +75,7 @@ class AppointmentLivewireTest extends TestCase
         [$tenant, $owner] = $this->seedTenantAndUser();
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Appointments\AppointmentBoard::class)
+            ->test(AppointmentBoard::class)
             ->call('toggleBookingForm')
             ->assertSet('showBookingForm', true)
             ->assertSee(__('klinic360.appointments.book'))
@@ -88,7 +90,7 @@ class AppointmentLivewireTest extends TestCase
         $patient = Patient::factory()->create(['tenant_id' => $tenant->id]);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Appointments\AppointmentBoard::class)
+            ->test(AppointmentBoard::class)
             ->set('patientId', $patient->id)
             ->set('doctorId', $doctor->id)
             ->set('type', 'IN_PERSON')
@@ -116,7 +118,7 @@ class AppointmentLivewireTest extends TestCase
         $patient = Patient::factory()->create(['tenant_id' => $tenant->id]);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Appointments\AppointmentBoard::class)
+            ->test(AppointmentBoard::class)
             ->set('patientId', $patient->id)
             ->set('doctorId', $doctor->id)
             ->set('type', 'WALK_IN')
@@ -141,7 +143,7 @@ class AppointmentLivewireTest extends TestCase
         $date = now()->addDay()->format('Y-m-d');
 
         $lw = Livewire::actingAs($owner)
-            ->test(\App\Livewire\Appointments\AppointmentBoard::class);
+            ->test(AppointmentBoard::class);
 
         // First booking succeeds.
         $lw->set('patientId', $patient->id)
@@ -170,7 +172,7 @@ class AppointmentLivewireTest extends TestCase
         $patient = Patient::factory()->create(['tenant_id' => $tenant->id]);
         $doctor = User::factory()->forTenant($tenant)->role('DOCTOR')->create();
 
-        $appt = \App\Models\Appointment::factory()->create([
+        $appt = Appointment::factory()->create([
             'tenant_id' => $tenant->id,
             'patient_id' => $patient->id,
             'user_id' => $doctor->id,
@@ -182,7 +184,7 @@ class AppointmentLivewireTest extends TestCase
         ]);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\Appointments\AppointmentBoard::class)
+            ->test(AppointmentBoard::class)
             ->set('date', $appt->appointment_date->format('Y-m-d'))
             ->call('cancelAppointment', $appt->id);
 
@@ -204,7 +206,7 @@ class AppointmentLivewireTest extends TestCase
         $patient = Patient::factory()->create(['tenant_id' => $tenant->id]);
 
         Livewire::actingAs($receptionist)
-            ->test(\App\Livewire\Appointments\AppointmentBoard::class)
+            ->test(AppointmentBoard::class)
             ->set('patientId', $patient->id)
             ->set('doctorId', $doctor->id)
             ->set('type', 'IN_PERSON')

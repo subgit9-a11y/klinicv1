@@ -16,6 +16,7 @@ class SystemSetting extends Model
     public static function get(string $key, mixed $default = null): mixed
     {
         $setting = static::where('key', $key)->first();
+
         return $setting?->value ?? $default;
     }
 }

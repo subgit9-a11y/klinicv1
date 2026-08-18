@@ -63,8 +63,8 @@ class LimitService
      * Check if adding `additional` more units would exceed the plan limit.
      * If the limit is null (unlimited), always returns false.
      *
-     * @param int $currentUsage  Current count of the resource.
-     * @param int $additional    Number of additional units to add (default 1).
+     * @param  int  $currentUsage  Current count of the resource.
+     * @param  int  $additional  Number of additional units to add (default 1).
      */
     public function canExceed(string $column, int $currentUsage, int $additional = 1, ?int $tenantId = null): bool
     {
@@ -96,8 +96,8 @@ class LimitService
      * Check if a feature limit would be exceeded. Uses the feature_limit
      * lookup (plan_features.limit_value).
      *
-     * @param int $currentUsage  Current usage count for the period.
-     * @param int $additional    Additional units requested.
+     * @param  int  $currentUsage  Current usage count for the period.
+     * @param  int  $additional  Additional units requested.
      */
     public function featureWouldExceed(string $featureKey, int $currentUsage, int $additional = 1, ?int $tenantId = null): bool
     {

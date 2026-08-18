@@ -6,6 +6,4 @@ namespace App\Services\Treatments;
 
 use RuntimeException;
 
-class BookingCollisionException extends RuntimeException
-{
-}
+class BookingCollisionException extends RuntimeException {}

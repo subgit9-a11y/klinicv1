@@ -20,7 +20,9 @@ use Illuminate\Support\Facades\Log;
 class GoogleMeetProvider implements VideoProviderInterface
 {
     private readonly string $clientId;
+
     private readonly string $clientSecret;
+
     private readonly ?string $refreshToken;
 
     public function __construct()
@@ -45,7 +47,7 @@ class GoogleMeetProvider implements VideoProviderInterface
      */
     public function createMeeting(string $title, \DateTimeInterface $start, \DateTimeInterface $end, ?string $tenantId = null): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['success' => false, 'meeting_id' => null, 'meeting_url' => null, 'message' => 'Google Meet not configured'];
         }
 
@@ -84,7 +86,7 @@ class GoogleMeetProvider implements VideoProviderInterface
 
             Log::warning('Google Meet createMeeting failed', ['status' => $response->status(), 'body' => $response->body()]);
 
-            return ['success' => false, 'meeting_id' => null, 'meeting_url' => null, 'message' => 'Google API error: ' . $response->status()];
+            return ['success' => false, 'meeting_id' => null, 'meeting_url' => null, 'message' => 'Google API error: '.$response->status()];
         } catch (\Throwable $e) {
             Log::error('Google Meet createMeeting exception', ['error' => $e->getMessage()]);
 
@@ -97,7 +99,7 @@ class GoogleMeetProvider implements VideoProviderInterface
      */
     public function deleteMeeting(string $meetingId): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['success' => false, 'message' => 'Google Meet not configured'];
         }
 
@@ -115,7 +117,7 @@ class GoogleMeetProvider implements VideoProviderInterface
                 return ['success' => true, 'message' => 'Meeting deleted'];
             }
 
-            return ['success' => false, 'message' => 'Delete failed: ' . $response->status()];
+            return ['success' => false, 'message' => 'Delete failed: '.$response->status()];
         } catch (\Throwable $e) {
             Log::error('Google Meet deleteMeeting exception', ['error' => $e->getMessage()]);
 

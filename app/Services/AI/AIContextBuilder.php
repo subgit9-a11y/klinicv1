@@ -30,8 +30,8 @@ class AIContextBuilder
         };
 
         // Append variable keys (not values) for audit.
-        if (!empty($variables)) {
-            $summary .= ' | Variables: ' . implode(', ', array_keys($variables));
+        if (! empty($variables)) {
+            $summary .= ' | Variables: '.implode(', ', array_keys($variables));
         }
 
         return $summary;
@@ -40,20 +40,20 @@ class AIContextBuilder
     private function summarizePatient(Model $patient): string
     {
         return "Patient #{$patient->id}"
-            . (isset($patient->gender) ? " ({$patient->gender})" : '')
-            . (isset($patient->system) ? " [{$patient->system}]" : '');
+            .(isset($patient->gender) ? " ({$patient->gender})" : '')
+            .(isset($patient->system) ? " [{$patient->system}]" : '');
     }
 
     private function summarizeConsultation(Model $consultation): string
     {
         return "Consultation #{$consultation->id}"
-            . (isset($consultation->patient_id) ? " for Patient #{$consultation->patient_id}" : '')
-            . (isset($consultation->system) ? " [{$consultation->system}]" : '');
+            .(isset($consultation->patient_id) ? " for Patient #{$consultation->patient_id}" : '')
+            .(isset($consultation->system) ? " [{$consultation->system}]" : '');
     }
 
     private function summarizeIpdAdmission(Model $admission): string
     {
         return "IPD Admission #{$admission->id}"
-            . (isset($admission->patient_id) ? " for Patient #{$admission->patient_id}" : '');
+            .(isset($admission->patient_id) ? " for Patient #{$admission->patient_id}" : '');
     }
 }

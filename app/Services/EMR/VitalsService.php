@@ -6,7 +6,6 @@ namespace App\Services\EMR;
 
 use App\Models\Vital;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Support\Facades\DB;
 
 /**
  * Records and retrieves patient vitals. BMI is auto-calculated from
@@ -17,8 +16,7 @@ class VitalsService
     /**
      * Record a vital sign entry for a patient.
      *
-     * @param int $patientId
-     * @param array{systolic_bp?:?string,diastolic_bp?:?string,pulse?:?string,temperature?:?string,respiratory_rate?:?string,spo2?:?string,height?:?string,weight?:?string,bmi?:?string,pain_score?:?string,custom_vitals?:array} $attributes
+     * @param  array{systolic_bp?:?string,diastolic_bp?:?string,pulse?:?string,temperature?:?string,respiratory_rate?:?string,spo2?:?string,height?:?string,weight?:?string,bmi?:?string,pain_score?:?string,custom_vitals?:array}  $attributes
      */
     public function record(int $patientId, array $attributes, ?int $consultationId = null, ?int $recordedBy = null): Vital
     {
@@ -28,7 +26,7 @@ class VitalsService
         $attributes['recorded_at'] = now();
 
         // Auto-calculate BMI if height and weight are present but BMI is not.
-        if (!isset($attributes['bmi']) && isset($attributes['height']) && isset($attributes['weight'])) {
+        if (! isset($attributes['bmi']) && isset($attributes['height']) && isset($attributes['weight'])) {
             $heightM = (float) $attributes['height'] / 100;
             $weightKg = (float) $attributes['weight'];
             if ($heightM > 0 && $weightKg > 0) {

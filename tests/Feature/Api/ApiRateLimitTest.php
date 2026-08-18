@@ -6,6 +6,7 @@ namespace Tests\Feature\Api;
 
 use App\Models\Tenant;
 use App\Models\User;
+use App\Services\Auth\TokenService;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -45,8 +46,8 @@ class ApiRateLimitTest extends TestCase
         app(TenantContext::class)->set($tenant->id);
         $user = User::factory()->forTenant($tenant)->create(['role' => 'DOCTOR']);
 
-        $issued = app(\App\Services\Auth\TokenService::class)->create($user, 'test', ['*']);
-        $headers = ['Authorization' => 'Bearer ' . $issued['token']];
+        $issued = app(TokenService::class)->create($user, 'test', ['*']);
+        $headers = ['Authorization' => 'Bearer '.$issued['token']];
 
         // Exhaust the 60/minute limit (60 successful requests).
         for ($i = 0; $i < 61; $i++) {

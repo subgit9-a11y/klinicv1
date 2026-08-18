@@ -9,6 +9,8 @@ use App\Contracts\SmsProviderInterface;
 use App\Contracts\WhatsAppProviderInterface;
 use App\Models\NotificationDelivery;
 use App\Models\NotificationTemplate;
+use App\Notifications\GenericInAppNotification;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Str;
@@ -83,6 +85,7 @@ class NotificationService
 
         if ($template === null) {
             $delivery->update(['status' => 'FAILED', 'error' => "No template for {$eventKey}/{$channel}"]);
+
             return $delivery->refresh();
         }
 
@@ -173,7 +176,7 @@ class NotificationService
         }
 
         foreach ($variables as $key => $value) {
-            $template = str_replace('{{' . $key . '}}', (string) $value, $template);
+            $template = str_replace('{{'.$key.'}}', (string) $value, $template);
         }
 
         return $template;
@@ -187,7 +190,7 @@ class NotificationService
         // In-app notifications are stored in the Laravel notifications table.
         // The notifiable model should use the Notifiable trait.
         if (method_exists($notifiable, 'notify')) {
-            $notifiable->notify(new \App\Notifications\GenericInAppNotification(
+            $notifiable->notify(new GenericInAppNotification(
                 $subject ?? '',
                 $body ?? ''
             ));
@@ -201,14 +204,14 @@ class NotificationService
         return match ($channel) {
             'whatsapp', 'sms' => $notifiable->phone ?? null,
             'email' => $notifiable->email ?? null,
-            'in_app' => $notifiable->getMorphClass() . ':' . $notifiable->id,
+            'in_app' => $notifiable->getMorphClass().':'.$notifiable->id,
             default => null,
         };
     }
 
     private function currentTenantId(): ?int
     {
-        $context = app(\App\Services\Tenancy\TenantContext::class);
+        $context = app(TenantContext::class);
         $id = $context->id();
 
         return $id;

@@ -8,6 +8,7 @@ use App\Models\ApiToken;
 use App\Models\Tenant;
 use App\Models\User;
 use Illuminate\Database\Eloquent\Factories\Factory;
+use Illuminate\Support\Str;
 
 /**
  * @extends Factory<ApiToken>
@@ -18,8 +19,8 @@ class ApiTokenFactory extends Factory
 
     public function definition(): array
     {
-        $plain = \Illuminate\Support\Str::random(60);
-        $fullToken = 'k360_' . $plain;
+        $plain = Str::random(60);
+        $fullToken = 'k360_'.$plain;
 
         return [
             'user_id' => User::factory(),
@@ -39,6 +40,6 @@ class ApiTokenFactory extends Factory
     public function definitionPlainText(): string
     {
         // Reconstruct from definition — only valid when used before persisting.
-        return 'k360_' . substr($this->definition()['token_hash'], 0, 0);
+        return 'k360_'.substr($this->definition()['token_hash'], 0, 0);
     }
 }

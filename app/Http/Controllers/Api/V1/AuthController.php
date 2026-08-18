@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Http\Controllers\Api\V1;
 
 use App\Http\Controllers\Controller;
+use App\Models\User;
 use App\Services\Audit\AuditService;
 use App\Services\Auth\TokenService;
 use App\Services\Tenancy\TenantContext;
@@ -13,6 +14,9 @@ use Illuminate\Http\Response;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\ValidationException;
 
+/**
+ * @group Authentication
+ */
 class AuthController extends Controller
 {
     public function __construct(
@@ -32,15 +36,15 @@ class AuthController extends Controller
             'device_name' => ['nullable', 'string', 'max:120'],
         ]);
 
-        $user = \App\Models\User::where('email', $validated['email'])->first();
+        $user = User::where('email', $validated['email'])->first();
 
-        if (!$user || !Hash::check($validated['password'], $user->password)) {
+        if (! $user || ! Hash::check($validated['password'], $user->password)) {
             throw ValidationException::withMessages([
                 'email' => ['The provided credentials are incorrect.'],
             ]);
         }
 
-        if (!$user->is_active) {
+        if (! $user->is_active) {
             throw ValidationException::withMessages([
                 'email' => ['This account is inactive.'],
             ]);

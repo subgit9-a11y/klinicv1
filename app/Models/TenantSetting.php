@@ -17,6 +17,7 @@ class TenantSetting extends Model
             ->where('tenant_id', $tenantId)
             ->where('key', $key)
             ->first();
+
         return $setting?->value ?? $default;
     }
 }

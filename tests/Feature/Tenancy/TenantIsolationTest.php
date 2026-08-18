@@ -8,6 +8,7 @@ use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
+use App\Services\Tenancy\TenantService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Route;
 use Tests\TestCase;
@@ -115,7 +116,7 @@ class TenantIsolationTest extends TestCase
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
 
-        $service = app(\App\Services\Tenancy\TenantService::class);
+        $service = app(TenantService::class);
 
         $this->assertSame($tenant->id, $service->id());
         $this->assertTrue($service->isSet());

@@ -276,7 +276,7 @@ class AppointmentService
     {
         $tenantId = $appointment->tenant_id;
 
-        $tokenNumber = DB::transaction(function () use ($tenantId, $appointment, $creator) {
+        $tokenNumber = DB::transaction(function () use ($tenantId, $appointment) {
             // Per-doctor, per-day sequence — concurrent-safe via row lock on the day's tokens.
             $lastToken = AppointmentToken::where('tenant_id', $tenantId)
                 ->where('user_id', $appointment->user_id)

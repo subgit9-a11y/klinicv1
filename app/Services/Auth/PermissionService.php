@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Auth;
 
 use App\Models\User;
+use Illuminate\Support\Facades\Cache;
 
 /**
  * Resolves whether a user holds a granular permission (Document 2 §6, §7).
@@ -32,6 +33,41 @@ class PermissionService
             return Permissions::all();
         }
 
+        return Cache::remember(
+            $this->cacheKey($user),
+            now()->addSeconds((int) config('klinic.cache_ttl.permissions', 300)),
+            fn () => $this->resolvePermissions($user),
+        );
+    }
+
+    public function can(User $user, string $permission): bool
+    {
+        if ($user->isSuperAdmin()) {
+            return true;
+        }
+
+        return in_array($permission, $this->forUser($user), true);
+    }
+
+    /**
+     * Invalidate the cached permissions for a user — call when a role
+     * changes or per-user overrides are updated.
+     */
+    public function flush(User $user): void
+    {
+        Cache::forget($this->cacheKey($user));
+    }
+
+    private function cacheKey(User $user): string
+    {
+        return "klinic:perms:{$user->id}";
+    }
+
+    /**
+     * @return list<string>
+     */
+    private function resolvePermissions(User $user): array
+    {
         $effective = array_values(array_unique(RolePermissions::forRole($user->role)));
 
         $overrides = $this->overrides($user);
@@ -47,15 +83,6 @@ class PermissionService
         }
 
         return $effective;
-    }
-
-    public function can(User $user, string $permission): bool
-    {
-        if ($user->isSuperAdmin()) {
-            return true;
-        }
-
-        return in_array($permission, $this->forUser($user), true);
     }
 
     public function canAny(User $user, array $permissions): bool

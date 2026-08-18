@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Livewire\Queue;
 
+use App\Models\AppointmentToken;
 use App\Models\User;
 use App\Services\Queue\QueueService;
 use App\Services\Tenancy\TenantContext;
@@ -40,7 +41,7 @@ class QueueBoard extends Component
     public function startConsultation(int $tokenId, QueueService $service): void
     {
         $this->authorize('queue.manage');
-        $token = \App\Models\AppointmentToken::findOrFail($tokenId);
+        $token = AppointmentToken::findOrFail($tokenId);
 
         try {
             $service->startConsultation($token, auth()->user());
@@ -52,7 +53,7 @@ class QueueBoard extends Component
     public function complete(int $tokenId, QueueService $service): void
     {
         $this->authorize('queue.manage');
-        $token = \App\Models\AppointmentToken::findOrFail($tokenId);
+        $token = AppointmentToken::findOrFail($tokenId);
 
         try {
             $service->complete($token, auth()->user());
@@ -64,7 +65,7 @@ class QueueBoard extends Component
     public function skip(int $tokenId, QueueService $service): void
     {
         $this->authorize('queue.manage');
-        $token = \App\Models\AppointmentToken::findOrFail($tokenId);
+        $token = AppointmentToken::findOrFail($tokenId);
 
         try {
             $service->skip($token, auth()->user());
@@ -76,7 +77,7 @@ class QueueBoard extends Component
     public function recall(int $tokenId, QueueService $service): void
     {
         $this->authorize('queue.manage');
-        $token = \App\Models\AppointmentToken::findOrFail($tokenId);
+        $token = AppointmentToken::findOrFail($tokenId);
 
         try {
             $service->recall($token, auth()->user());

@@ -12,11 +12,12 @@ use App\Services\Patients\PatientService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
+/**
+ * @group Patients
+ */
 class PatientController extends Controller
 {
-    public function __construct(private readonly PatientService $patientService)
-    {
-    }
+    public function __construct(private readonly PatientService $patientService) {}
 
     public function index(): AnonymousResourceCollection
     {
@@ -67,6 +68,7 @@ class PatientController extends Controller
     private function search(): ?string
     {
         $term = request()->query('search');
+
         return is_string($term) && $term !== '' ? $term : null;
     }
 }

@@ -6,8 +6,9 @@ namespace App\Services\Documents;
 
 use App\Models\Invoice;
 use App\Models\Prescription;
-use Illuminate\Support\Facades\View;
+use Dompdf\Dompdf;
 use Illuminate\Support\Facades\Storage;
+use Illuminate\Support\Facades\View;
 use Illuminate\Support\Str;
 
 /**
@@ -20,6 +21,7 @@ use Illuminate\Support\Str;
 class PdfService
 {
     private const PRESCRIPTION_TEMPLATE = 'pdf.prescription';
+
     private const INVOICE_TEMPLATE = 'pdf.invoice';
 
     /**
@@ -55,7 +57,7 @@ class PdfService
      */
     public function store(string $content, string $filename): string
     {
-        $path = 'pdfs/' . now()->format('Y/m/') . Str::uuid() . '-' . $filename;
+        $path = 'pdfs/'.now()->format('Y/m/').Str::uuid().'-'.$filename;
 
         Storage::disk('local')->put($path, $content);
 
@@ -67,12 +69,12 @@ class PdfService
      */
     private function render(string $html): string
     {
-        if (!class_exists(\Dompdf\Dompdf::class)) {
+        if (! class_exists(Dompdf::class)) {
             // Fallback: return HTML if Dompdf not installed.
             return $html;
         }
 
-        $dompdf = new \Dompdf\Dompdf(['isRemoteEnabled' => false]);
+        $dompdf = new Dompdf(['isRemoteEnabled' => false]);
         $dompdf->loadHtml($html);
         $dompdf->setPaper('A4', 'portrait');
         $dompdf->render();

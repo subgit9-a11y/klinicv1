@@ -6,6 +6,4 @@ namespace App\Services\IPD;
 
 use RuntimeException;
 
-class BedNotAvailableException extends RuntimeException
-{
-}
+class BedNotAvailableException extends RuntimeException {}

@@ -177,7 +177,7 @@ class QueueService
      */
     public function recall(AppointmentToken $token, User $by): AppointmentToken
     {
-        return DB::transaction(function () use ($token, $by) {
+        return DB::transaction(function () use ($token) {
             $token = $this->lockToken($token);
 
             if ($token->status !== 'SKIPPED') {

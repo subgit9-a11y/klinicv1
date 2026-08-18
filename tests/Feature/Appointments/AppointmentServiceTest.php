@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Appointments;
 
 use App\Models\Appointment;
-use App\Models\AppointmentToken;
 use App\Models\DoctorAvailability;
 use App\Models\Patient;
 use App\Models\Tenant;

@@ -27,7 +27,7 @@ class ApiTreatmentsTest extends TestCase
     {
         $issued = app(TokenService::class)->create($user, 'test', ['*']);
 
-        return ['Authorization' => 'Bearer ' . $issued['token']];
+        return ['Authorization' => 'Bearer '.$issued['token']];
     }
 
     public function test_can_list_treatment_bookings(): void

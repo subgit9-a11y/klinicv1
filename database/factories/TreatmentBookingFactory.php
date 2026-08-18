@@ -2,7 +2,11 @@
 
 namespace Database\Factories;
 
+use App\Models\Patient;
+use App\Models\Therapist;
 use App\Models\TreatmentBooking;
+use App\Models\TreatmentRoom;
+use App\Models\TreatmentService;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -15,10 +19,10 @@ class TreatmentBookingFactory extends Factory
     {
         return [
             'tenant_id' => app(TenantContext::class)->id(),
-            'patient_id' => \App\Models\Patient::factory(),
-            'treatment_service_id' => \App\Models\TreatmentService::factory(),
-            'therapist_id' => \App\Models\Therapist::factory(),
-            'treatment_room_id' => \App\Models\TreatmentRoom::factory(),
+            'patient_id' => Patient::factory(),
+            'treatment_service_id' => TreatmentService::factory(),
+            'therapist_id' => Therapist::factory(),
+            'treatment_room_id' => TreatmentRoom::factory(),
             'treatment_plan_id' => null,
             'treatment_package_id' => null,
             'invoice_id' => null,

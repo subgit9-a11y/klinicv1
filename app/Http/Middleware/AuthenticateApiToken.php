@@ -29,20 +29,20 @@ class AuthenticateApiToken
     {
         $bearer = $request->bearerToken();
 
-        if (!$bearer) {
+        if (! $bearer) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         $apiToken = $this->tokenService->validate($bearer);
 
-        if (!$apiToken) {
+        if (! $apiToken) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
         /** @var User|null $user */
         $user = User::find($apiToken->user_id);
 
-        if (!$user || !$user->is_active) {
+        if (! $user || ! $user->is_active) {
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 

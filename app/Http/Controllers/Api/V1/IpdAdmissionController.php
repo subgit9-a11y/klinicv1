@@ -12,11 +12,12 @@ use App\Services\IPD\IpdService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
+/**
+ * @group IPD Admissions
+ */
 class IpdAdmissionController extends Controller
 {
-    public function __construct(private readonly IpdService $ipdService)
-    {
-    }
+    public function __construct(private readonly IpdService $ipdService) {}
 
     public function index(): AnonymousResourceCollection
     {

@@ -5,7 +5,6 @@ namespace Database\Factories;
 use App\Models\Consultation;
 use App\Models\Followup;
 use App\Models\Patient;
-use App\Models\Tenant;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
 

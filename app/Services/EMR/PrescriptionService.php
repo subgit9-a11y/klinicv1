@@ -6,8 +6,6 @@ namespace App\Services\EMR;
 
 use App\Models\Consultation;
 use App\Models\Prescription;
-use App\Models\PrescriptionItem;
-use App\Models\User;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -25,9 +23,8 @@ class PrescriptionService
      * Create a prescription with items for a patient, optionally linked to
      * a consultation.
      *
-     * @param int $patientId
-     * @param array{notes?: string, consultation_id?: int} $attributes
-     * @param array<int, array{medicine:string,form?:?string,strength?:?string,dose?:?string,frequency?:?string,duration?:?string,route?:?string,quantity?:?string,instructions?:?string,timing?:?string,anupana?:?string,external_application?:bool}> $items
+     * @param  array{notes?: string, consultation_id?: int}  $attributes
+     * @param  array<int, array{medicine:string,form?:?string,strength?:?string,dose?:?string,frequency?:?string,duration?:?string,route?:?string,quantity?:?string,instructions?:?string,timing?:?string,anupana?:?string,external_application?:bool}>  $items
      */
     public function create(int $patientId, array $attributes, array $items, ?int $prescriberId = null): Prescription
     {
@@ -96,7 +93,7 @@ class PrescriptionService
         $prescription->update([
             'status' => 'CANCELLED',
             'notes' => $reason !== null
-                ? ($prescription->notes . "\n[Cancelled: {$reason}]")
+                ? ($prescription->notes."\n[Cancelled: {$reason}]")
                 : $prescription->notes,
         ]);
 

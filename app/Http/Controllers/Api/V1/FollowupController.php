@@ -7,15 +7,15 @@ namespace App\Http\Controllers\Api\V1;
 use App\Http\Controllers\Controller;
 use App\Models\Followup;
 use App\Services\EMR\FollowupService;
-use App\Services\Tenancy\TenantContext;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
+/**
+ * @group Follow-ups
+ */
 class FollowupController extends Controller
 {
-    public function __construct(private readonly FollowupService $followupService)
-    {
-    }
+    public function __construct(private readonly FollowupService $followupService) {}
 
     public function index(Request $request): Response
     {

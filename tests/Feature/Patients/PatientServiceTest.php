@@ -4,15 +4,12 @@ declare(strict_types=1);
 
 namespace Tests\Feature\Patients;
 
-use App\Models\Patient;
 use App\Models\Tenant;
-use App\Models\User;
-use App\Services\Auth\Permissions;
 use App\Services\Patients\PatientService;
 use App\Services\Patients\PatientUidService;
 use App\Services\Tenancy\TenantContext;
+use Illuminate\Database\QueryException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
-use Illuminate\Support\Facades\DB;
 use Tests\TestCase;
 
 class PatientServiceTest extends TestCase
@@ -86,7 +83,7 @@ class PatientServiceTest extends TestCase
         $service = app(PatientService::class);
         $service->register(['first_name' => 'A', 'phone' => '9111111111', 'gender' => 'MALE']);
 
-        $this->expectException(\Illuminate\Database\QueryException::class);
+        $this->expectException(QueryException::class);
         $service->register(['first_name' => 'B', 'phone' => '9111111111', 'gender' => 'FEMALE']);
     }
 

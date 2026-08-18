@@ -1,15 +1,16 @@
 <?php
 
+use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RequireRole;
 use App\Http\Middleware\RequireTwoFactorChallenge;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
+use Illuminate\Console\Scheduling\Schedule;
 use Illuminate\Foundation\Application;
 use Illuminate\Foundation\Configuration\Exceptions;
 use Illuminate\Foundation\Configuration\Middleware;
 use Illuminate\Http\Request;
-use Illuminate\Console\Scheduling\Schedule;
 
 return Application::configure(basePath: dirname(__DIR__))
     ->withRouting(
@@ -34,7 +35,7 @@ return Application::configure(basePath: dirname(__DIR__))
             '2fa' => RequireTwoFactorChallenge::class,
             'tenant' => SetTenantContext::class,
             'role' => RequireRole::class,
-            'auth.api' => \App\Http\Middleware\AuthenticateApiToken::class,
+            'auth.api' => AuthenticateApiToken::class,
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {

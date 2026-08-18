@@ -6,8 +6,6 @@ namespace Tests\Feature\Payments;
 
 use App\Contracts\PaymentGatewayInterface;
 use App\Contracts\SubscriptionProviderInterface;
-use App\Models\Invoice;
-use App\Models\PaymentOrder;
 use App\Models\PaymentWebhook;
 use App\Models\Tenant;
 use App\Services\Payments\CashfreePaymentProvider;

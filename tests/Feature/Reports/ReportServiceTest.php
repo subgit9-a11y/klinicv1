@@ -15,7 +15,6 @@ use App\Models\Tenant;
 use App\Models\TreatmentBooking;
 use App\Services\Reports\ReportService;
 use App\Services\Tenancy\TenantContext;
-use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 

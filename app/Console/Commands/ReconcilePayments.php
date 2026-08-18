@@ -12,12 +12,14 @@ use Illuminate\Support\Carbon;
 class ReconcilePayments extends Command
 {
     protected $signature = 'klinic:reconcile-payments';
+
     protected $description = 'Re-verify pending payment orders against the gateway and settle stale ones';
 
     public function handle(CashfreePaymentProvider $provider): int
     {
-        if (!$provider->isConfigured()) {
+        if (! $provider->isConfigured()) {
             $this->info('Payment gateway not configured — skipping reconciliation.');
+
             return self::SUCCESS;
         }
 
@@ -41,6 +43,7 @@ class ReconcilePayments extends Command
         }
 
         $this->info("Reconciled {$settled} of {$orders->count()} pending payment orders.");
+
         return self::SUCCESS;
     }
 }

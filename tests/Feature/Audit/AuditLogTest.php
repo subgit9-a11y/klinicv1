@@ -47,7 +47,7 @@ class AuditLogTest extends TestCase
         $user = User::factory()->create(['tenant_id' => $tenant->id, 'is_active' => true]);
         $issued = app(TokenService::class)->create($user, 'test', ['*']);
 
-        $this->withHeader('Authorization', 'Bearer ' . $issued['token'])
+        $this->withHeader('Authorization', 'Bearer '.$issued['token'])
             ->postJson('/api/v1/auth/logout')
             ->assertSuccessful();
 

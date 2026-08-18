@@ -8,12 +8,14 @@ use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\Therapist;
 use App\Models\TreatmentBooking;
+use App\Models\TreatmentPlan;
 use App\Models\TreatmentRoom;
+use App\Models\TreatmentService;
 use App\Models\User;
 use App\Policies\TreatmentPolicy;
+use App\Services\Tenancy\TenantContext;
 use App\Services\Treatments\BookingCollisionException;
 use App\Services\Treatments\TreatmentBookingService;
-use App\Services\Tenancy\TenantContext;
 use Carbon\Carbon;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
@@ -37,7 +39,7 @@ class TreatmentServiceTest extends TestCase
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
         $patient = Patient::factory()->create();
-        $service = \App\Models\TreatmentService::factory()->create(['duration_minutes' => 45]);
+        $service = TreatmentService::factory()->create(['duration_minutes' => 45]);
         $therapist = Therapist::factory()->create();
         $room = TreatmentRoom::factory()->create();
 
@@ -60,7 +62,7 @@ class TreatmentServiceTest extends TestCase
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
         $patient = Patient::factory()->create();
-        $service = \App\Models\TreatmentService::factory()->create();
+        $service = TreatmentService::factory()->create();
         $therapist = Therapist::factory()->create();
 
         $booking = app(TreatmentBookingService::class)->book([
@@ -81,7 +83,7 @@ class TreatmentServiceTest extends TestCase
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
         $patient = Patient::factory()->create();
-        $service = \App\Models\TreatmentService::factory()->create();
+        $service = TreatmentService::factory()->create();
         $therapist = Therapist::factory()->create();
         $room = TreatmentRoom::factory()->create();
 
@@ -114,7 +116,7 @@ class TreatmentServiceTest extends TestCase
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
         $patient = Patient::factory()->create();
-        $service = \App\Models\TreatmentService::factory()->create();
+        $service = TreatmentService::factory()->create();
         $therapist = Therapist::factory()->create();
 
         $svc = app(TreatmentBookingService::class);
@@ -145,7 +147,7 @@ class TreatmentServiceTest extends TestCase
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
         $patient = Patient::factory()->create();
-        $service = \App\Models\TreatmentService::factory()->create();
+        $service = TreatmentService::factory()->create();
         $therapist1 = Therapist::factory()->create();
         $therapist2 = Therapist::factory()->create();
         $room = TreatmentRoom::factory()->create();
@@ -179,7 +181,7 @@ class TreatmentServiceTest extends TestCase
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
         $patient = Patient::factory()->create();
-        $service = \App\Models\TreatmentService::factory()->create();
+        $service = TreatmentService::factory()->create();
         $therapist = Therapist::factory()->create();
 
         $svc = app(TreatmentBookingService::class);
@@ -224,7 +226,7 @@ class TreatmentServiceTest extends TestCase
     {
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
-        $plan = \App\Models\TreatmentPlan::factory()->create([
+        $plan = TreatmentPlan::factory()->create([
             'total_sessions' => 3,
             'completed_sessions' => 2,
             'status' => 'ACTIVE',

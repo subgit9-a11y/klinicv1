@@ -8,6 +8,7 @@ use Illuminate\Database\Eloquent\Model;
 class Plan extends Model
 {
     use HasFactory;
+
     protected $fillable = [
         'code', 'name', 'description', 'price_cents', 'currency', 'billing_cycle',
         'is_active', 'max_users', 'max_doctors', 'max_patients',

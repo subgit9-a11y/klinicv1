@@ -10,9 +10,7 @@ use Illuminate\Http\Request;
 
 class BillingController extends Controller
 {
-    public function __construct(private readonly BillingService $billing)
-    {
-    }
+    public function __construct(private readonly BillingService $billing) {}
 
     public function index(Request $request)
     {

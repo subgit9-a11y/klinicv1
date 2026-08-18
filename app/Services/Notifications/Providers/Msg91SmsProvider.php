@@ -17,7 +17,9 @@ use Illuminate\Support\Facades\Log;
 class Msg91SmsProvider implements SmsProviderInterface
 {
     private readonly string $authKey;
+
     private readonly string $senderId;
+
     private readonly string $route;
 
     public function __construct()
@@ -39,7 +41,7 @@ class Msg91SmsProvider implements SmsProviderInterface
 
     public function send(string $to, string $message, array $variables = []): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['success' => false, 'reference' => null, 'message' => 'MSG91 not configured'];
         }
 
@@ -69,7 +71,7 @@ class Msg91SmsProvider implements SmsProviderInterface
 
             Log::warning('MSG91 send failed', ['status' => $response->status()]);
 
-            return ['success' => false, 'reference' => null, 'message' => 'API error: ' . $response->status()];
+            return ['success' => false, 'reference' => null, 'message' => 'API error: '.$response->status()];
         } catch (\Throwable $e) {
             Log::error('MSG91 send exception', ['error' => $e->getMessage()]);
 

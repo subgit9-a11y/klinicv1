@@ -6,10 +6,10 @@ namespace App\Livewire\EMR;
 
 use App\Models\Consultation;
 use App\Models\Patient;
-use App\Models\User;
 use App\Services\EMR\ConsultationService;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Contracts\View\View;
+use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 
 /**
@@ -20,33 +20,52 @@ use Livewire\Component;
 class ConsultationBoard extends Component
 {
     public ?int $patientId = null;
+
     public ?int $consultationId = null;
+
     public ?int $activeConsultationId = null;
+
     public string $medicineSystem = 'GENERAL';
+
     public string $consultationType = 'OPD';
+
     public string $chiefComplaint = '';
+
     public string $history = '';
+
     public string $examination = '';
+
     public string $assessment = '';
+
     public string $diagnosisSummary = '';
+
     public string $treatmentPlan = '';
+
     public string $advice = '';
+
     public string $followUpInstructions = '';
+
     public ?int $followUpDays = null;
+
     public array $systemSpecific = [];
 
     // Diagnosis inline form
     public string $dxName = '';
+
     public string $dxCode = '';
+
     public string $dxType = 'PRIMARY';
+
     public string $dxNotes = '';
 
     // Clinical note inline form
     public string $noteContent = '';
+
     public string $noteType = 'PROGRESS';
 
     // Amend modal
     public bool $showAmendModal = false;
+
     public string $amendReason = '';
 
     public function mount(?int $patientId = null): void
@@ -111,7 +130,7 @@ class ConsultationBoard extends Component
             $completed = $service->complete($consultation, auth()->user());
             $this->loadConsultation($completed);
             session()->flash('emr-message', __('Consultation completed.'));
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->addValidationErrors($e);
         }
     }
@@ -134,7 +153,7 @@ class ConsultationBoard extends Component
             $this->loadConsultation($amended);
             $this->showAmendModal = false;
             session()->flash('emr-message', __('Consultation amended.'));
-        } catch (\Illuminate\Validation\ValidationException $e) {
+        } catch (ValidationException $e) {
             $this->addValidationErrors($e);
         }
     }
@@ -283,7 +302,7 @@ class ConsultationBoard extends Component
         ];
     }
 
-    private function addValidationErrors(\Illuminate\Validation\ValidationException $e): void
+    private function addValidationErrors(ValidationException $e): void
     {
         foreach ($e->validator->errors()->all() as $error) {
             $this->addError('emr', $error);

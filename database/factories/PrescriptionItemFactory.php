@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Prescription;
 use App\Models\PrescriptionItem;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
@@ -15,7 +16,7 @@ class PrescriptionItemFactory extends Factory
         $forms = ['tablet', 'syrup', 'churna', 'kwath', 'oil', 'capsule'];
 
         return [
-            'prescription_id' => \App\Models\Prescription::factory(),
+            'prescription_id' => Prescription::factory(),
             'medicine' => fake()->word().' '.fake()->word(),
             'form' => fake()->randomElement($forms),
             'strength' => fake()->optional()->numerify('###mg'),

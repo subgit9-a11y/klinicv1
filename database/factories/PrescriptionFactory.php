@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Patient;
 use App\Models\Prescription;
 use App\Models\PrescriptionItem;
 use App\Services\Tenancy\TenantContext;
@@ -16,7 +17,7 @@ class PrescriptionFactory extends Factory
     {
         return [
             'tenant_id' => app(TenantContext::class)->id(),
-            'patient_id' => \App\Models\Patient::factory(),
+            'patient_id' => Patient::factory(),
             'consultation_id' => null,
             'user_id' => null,
             'status' => 'ACTIVE',

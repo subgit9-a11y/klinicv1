@@ -28,7 +28,7 @@ class ApiResourcesTest extends TestCase
     {
         $issued = app(TokenService::class)->create($user, 'test', ['*']);
 
-        return ['Authorization' => 'Bearer ' . $issued['token']];
+        return ['Authorization' => 'Bearer '.$issued['token']];
     }
 
     public function test_can_list_appointments_filtered_by_date(): void

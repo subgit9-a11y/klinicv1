@@ -6,12 +6,10 @@ namespace Tests\Feature\EMR;
 
 use App\Models\Patient;
 use App\Models\Prescription;
-use App\Models\PrescriptionItem;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Models\Vital;
 use App\Policies\PrescriptionPolicy;
-use App\Services\Auth\Permissions;
 use App\Services\EMR\PrescriptionService;
 use App\Services\EMR\VitalsService;
 use App\Services\Tenancy\TenantContext;

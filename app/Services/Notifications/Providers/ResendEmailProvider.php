@@ -5,8 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Notifications\Providers;
 
 use App\Contracts\EmailProviderInterface;
-use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Str;
 
 /**
@@ -19,6 +20,7 @@ use Illuminate\Support\Str;
 class ResendEmailProvider implements EmailProviderInterface
 {
     private readonly string $resendKey;
+
     private readonly string $fromAddress;
 
     public function __construct()
@@ -55,7 +57,7 @@ class ResendEmailProvider implements EmailProviderInterface
     private function sendViaResend(string $to, string $subject, string $htmlBody): array
     {
         try {
-            $response = \Illuminate\Support\Facades\Http::withToken($this->resendKey)
+            $response = Http::withToken($this->resendKey)
                 ->timeout(30)
                 ->post('https://api.resend.com/emails', [
                     'from' => $this->fromAddress,
@@ -72,7 +74,7 @@ class ResendEmailProvider implements EmailProviderInterface
 
             Log::warning('Resend send failed', ['status' => $response->status()]);
 
-            return ['success' => false, 'reference' => null, 'message' => 'Resend error: ' . $response->status()];
+            return ['success' => false, 'reference' => null, 'message' => 'Resend error: '.$response->status()];
         } catch (\Throwable $e) {
             Log::error('Resend send exception', ['error' => $e->getMessage()]);
 

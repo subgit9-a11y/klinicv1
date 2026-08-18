@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace App\Services\Plans;
 
 use App\Models\Plan;
-use App\Models\PlanFeature;
 use App\Models\Subscription;
 use App\Models\Tenant;
 use App\Services\Tenancy\TenantContext;

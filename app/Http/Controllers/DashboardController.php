@@ -10,9 +10,7 @@ use Illuminate\Support\Facades\Auth;
 
 class DashboardController extends Controller
 {
-    public function __construct(private readonly ReportService $reports)
-    {
-    }
+    public function __construct(private readonly ReportService $reports) {}
 
     public function index()
     {
@@ -63,6 +61,6 @@ class DashboardController extends Controller
 
     private function formatCurrency(float $amount): string
     {
-        return '₹' . number_format($amount, 2);
+        return '₹'.number_format($amount, 2);
     }
 }

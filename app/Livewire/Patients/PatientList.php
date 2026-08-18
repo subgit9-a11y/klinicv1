@@ -6,6 +6,7 @@ namespace App\Livewire\Patients;
 
 use App\Models\Patient;
 use App\Services\Patients\PatientService;
+use Illuminate\Database\QueryException;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -88,7 +89,7 @@ class PatientList extends Component
             $this->dispatch('patient-registered', patientId: $patient->id);
 
             session()->flash('patient-message', __('klinic360.patients.created'));
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             // (tenant_id, phone) unique violation → friendly duplicate message.
             if (str_contains((string) $e->getMessage(), 'phone')) {
                 $this->addError('phone', __('klinic360.patients.duplicate_phone'));
@@ -101,7 +102,7 @@ class PatientList extends Component
     public function render(PatientService $service)
     {
         $patients = Patient::query()
-            ->when($this->search !== '', function ($q) use ($service) {
+            ->when($this->search !== '', function ($q) {
                 $term = $this->search;
                 $q->where(function ($sub) use ($term) {
                     $sub->where('k360_uid', 'like', $term.'%')

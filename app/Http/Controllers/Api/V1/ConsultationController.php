@@ -9,15 +9,16 @@ use App\Http\Requests\Api\StoreConsultationRequest;
 use App\Http\Resources\Api\ConsultationResource;
 use App\Models\Consultation;
 use App\Services\EMR\ConsultationService;
-use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Request;
+use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
+/**
+ * @group Consultations
+ */
 class ConsultationController extends Controller
 {
-    public function __construct(private readonly ConsultationService $consultationService)
-    {
-    }
+    public function __construct(private readonly ConsultationService $consultationService) {}
 
     public function index(): AnonymousResourceCollection
     {

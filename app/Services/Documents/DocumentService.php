@@ -5,7 +5,10 @@ declare(strict_types=1);
 namespace App\Services\Documents;
 
 use App\Contracts\StorageProviderInterface;
+use App\Models\Consultation;
 use App\Models\Document;
+use App\Models\IpdAdmission;
+use App\Models\Patient;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
@@ -52,8 +55,8 @@ class DocumentService
             return Document::create([
                 'tenant_id' => $tenantId,
                 'patient_id' => $this->extractPatientId($attachable),
-                'consultation_id' => $attachable instanceof \App\Models\Consultation ? $attachable->id : null,
-                'ipd_admission_id' => $attachable instanceof \App\Models\IpdAdmission ? $attachable->id : null,
+                'consultation_id' => $attachable instanceof Consultation ? $attachable->id : null,
+                'ipd_admission_id' => $attachable instanceof IpdAdmission ? $attachable->id : null,
                 'name' => $file->getClientOriginalName(),
                 'type' => $type,
                 'disk' => $this->storage->name(),
@@ -103,7 +106,7 @@ class DocumentService
             $attachable?->getMorphClass() ?? 'general',
             $attachable?->id ?? 'unattached',
             now()->format('Y/m'),
-            Str::uuid()->toString() . '.' . $file->getClientOriginalExtension(),
+            Str::uuid()->toString().'.'.$file->getClientOriginalExtension(),
         ];
 
         return implode('/', $segments);
@@ -116,7 +119,7 @@ class DocumentService
         }
 
         // If the attachable is a Patient, return its ID.
-        if ($attachable instanceof \App\Models\Patient) {
+        if ($attachable instanceof Patient) {
             return $attachable->id;
         }
 

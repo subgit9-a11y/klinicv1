@@ -10,11 +10,12 @@ use App\Services\EMR\InvestigationService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
+/**
+ * @group Investigations
+ */
 class InvestigationController extends Controller
 {
-    public function __construct(private readonly InvestigationService $investigationService)
-    {
-    }
+    public function __construct(private readonly InvestigationService $investigationService) {}
 
     public function index(Request $request): Response
     {

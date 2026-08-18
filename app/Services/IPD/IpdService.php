@@ -4,11 +4,11 @@ declare(strict_types=1);
 
 namespace App\Services\IPD;
 
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\IpdAdmission;
 use App\Models\IpdBed;
 use App\Models\IpdDischargeSummary;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -27,8 +27,9 @@ class IpdService
     /**
      * Admit a patient and allocate a bed.
      *
-     * @param array{patient_id:int, ipd_bed_id?:?int, admitting_doctor_id?:?int, admission_type?:string, admission_reason?:?string, provisional_diagnosis?:?string, admitted_at?:?Carbon} $attributes
-     * @throws \App\Services\IPD\BedNotAvailableException
+     * @param  array{patient_id:int, ipd_bed_id?:?int, admitting_doctor_id?:?int, admission_type?:string, admission_reason?:?string, provisional_diagnosis?:?string, admitted_at?:?Carbon}  $attributes
+     *
+     * @throws BedNotAvailableException
      */
     public function admit(array $attributes): IpdAdmission
     {
@@ -90,7 +91,7 @@ class IpdService
      * timestamp/status, creates a discharge summary, and generates a final
      * IPD invoice with bed charges.
      *
-     * @param array{discharge_diagnosis?:?string, treatment_given?:?string, advice_on_discharge?:?string, follow_up_instructions?:?string, follow_up_days?:?int} $summary
+     * @param  array{discharge_diagnosis?:?string, treatment_given?:?string, advice_on_discharge?:?string, follow_up_instructions?:?string, follow_up_days?:?int}  $summary
      */
     public function discharge(IpdAdmission $admission, array $summary = []): IpdAdmission
     {
@@ -177,7 +178,7 @@ class IpdService
 
     private function generateIpdNumber(): string
     {
-        return 'K360-IPD-' . str_pad((string) (IpdAdmission::max('id') + 1), 6, '0', STR_PAD_LEFT);
+        return 'K360-IPD-'.str_pad((string) (IpdAdmission::max('id') + 1), 6, '0', STR_PAD_LEFT);
     }
 
     private function generateIpdInvoice(IpdAdmission $admission, ?IpdBed $bed, int $days, Carbon $dischargedAt): void
@@ -186,7 +187,7 @@ class IpdService
             'tenant_id' => $admission->tenant_id,
             'patient_id' => $admission->patient_id,
             'ipd_admission_id' => $admission->id,
-            'invoice_number' => 'K360-INV-IPD-' . $admission->id,
+            'invoice_number' => 'K360-INV-IPD-'.$admission->id,
             'status' => 'DRAFT',
             'source' => 'IPD',
             'currency' => 'INR',

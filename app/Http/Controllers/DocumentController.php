@@ -13,9 +13,7 @@ use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
-    public function __construct(private readonly PdfService $pdf)
-    {
-    }
+    public function __construct(private readonly PdfService $pdf) {}
 
     public function index()
     {

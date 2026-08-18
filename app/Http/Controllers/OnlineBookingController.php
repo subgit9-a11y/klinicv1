@@ -9,13 +9,12 @@ use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Appointments\AppointmentService;
 use App\Services\Tenancy\TenantContext;
+use Carbon\Carbon;
 use Illuminate\Http\Request;
 
 class OnlineBookingController extends Controller
 {
-    public function __construct(private readonly AppointmentService $appointments)
-    {
-    }
+    public function __construct(private readonly AppointmentService $appointments) {}
 
     public function show(Request $request)
     {
@@ -101,7 +100,7 @@ class OnlineBookingController extends Controller
     private function computeEndTime(string $startTime, int $minutes): string
     {
         try {
-            return \Carbon\Carbon::parse($startTime)->addMinutes($minutes)->format('H:i');
+            return Carbon::parse($startTime)->addMinutes($minutes)->format('H:i');
         } catch (\Throwable) {
             return $startTime;
         }

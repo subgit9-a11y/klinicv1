@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Database\Factories;
 
-use App\Models\Consultation;
 use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;

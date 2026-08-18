@@ -15,53 +15,77 @@ final class Permissions
 {
     // Patients
     public const PATIENTS_VIEW = 'patients.view';
+
     public const PATIENTS_CREATE = 'patients.create';
+
     public const PATIENTS_EDIT = 'patients.edit';
+
     public const PATIENTS_DELETE = 'patients.delete';
+
     public const PATIENTS_EXPORT = 'patients.export';
 
     // Appointments & Queue
     public const APPOINTMENTS_VIEW = 'appointments.view';
+
     public const APPOINTMENTS_CREATE = 'appointments.create';
+
     public const APPOINTMENTS_EDIT = 'appointments.edit';
+
     public const APPOINTMENTS_CANCEL = 'appointments.cancel';
+
     public const QUEUE_MANAGE = 'queue.manage';
 
     // Consultations / EMR
     public const CONSULTATIONS_VIEW = 'consultations.view';
+
     public const CONSULTATIONS_CREATE = 'consultations.create';
+
     public const CONSULTATIONS_EDIT = 'consultations.edit';
+
     public const VITALS_MANAGE = 'vitals.manage';
 
     // Prescriptions
     public const PRESCRIPTIONS_VIEW = 'prescriptions.view';
+
     public const PRESCRIPTIONS_CREATE = 'prescriptions.create';
+
     public const PRESCRIPTIONS_EDIT = 'prescriptions.edit';
 
     // Treatments
     public const TREATMENTS_VIEW = 'treatments.view';
+
     public const TREATMENTS_CREATE = 'treatments.create';
+
     public const TREATMENTS_EDIT = 'treatments.edit';
 
     // IPD
     public const IPD_VIEW = 'ipd.view';
+
     public const IPD_ADMIT = 'ipd.admit';
+
     public const IPD_DISCHARGE = 'ipd.discharge';
+
     public const IPD_NOTES = 'ipd.notes';
 
     // Billing
     public const BILLING_VIEW = 'billing.view';
+
     public const BILLING_CREATE = 'billing.create';
+
     public const BILLING_REFUND = 'billing.refund';
+
     public const CASH_REGISTER_MANAGE = 'cash_register.manage';
 
     // AI
     public const AI_USE = 'ai.use';
+
     public const AI_PROMPTS_MANAGE = 'ai.prompts.manage';
 
     // Documents
     public const DOCUMENTS_VIEW = 'documents.view';
+
     public const DOCUMENTS_UPLOAD = 'documents.upload';
+
     public const DOCUMENTS_DELETE = 'documents.delete';
 
     /** @return list<string> */

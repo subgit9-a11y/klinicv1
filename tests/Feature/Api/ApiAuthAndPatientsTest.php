@@ -25,7 +25,7 @@ class ApiAuthAndPatientsTest extends TestCase
     {
         $issued = app(TokenService::class)->create($user, 'test', ['*']);
 
-        return ['Authorization' => 'Bearer ' . $issued['token']];
+        return ['Authorization' => 'Bearer '.$issued['token']];
     }
 
     public function test_login_returns_token_for_valid_credentials(): void
@@ -141,12 +141,12 @@ class ApiAuthAndPatientsTest extends TestCase
         $user = User::factory()->create();
         $issued = app(TokenService::class)->create($user, 'test');
 
-        $this->withHeader('Authorization', 'Bearer ' . $issued['token'])
+        $this->withHeader('Authorization', 'Bearer '.$issued['token'])
             ->postJson('/api/v1/auth/logout')
             ->assertSuccessful();
 
         // Same token no longer works.
-        $this->withHeader('Authorization', 'Bearer ' . $issued['token'])
+        $this->withHeader('Authorization', 'Bearer '.$issued['token'])
             ->getJson('/api/v1/patients')
             ->assertUnauthorized();
     }
@@ -156,7 +156,7 @@ class ApiAuthAndPatientsTest extends TestCase
         $user = User::factory()->create();
         $issued = app(TokenService::class)->create($user, 'test', ['*'], now()->subMinute());
 
-        $this->withHeader('Authorization', 'Bearer ' . $issued['token'])
+        $this->withHeader('Authorization', 'Bearer '.$issued['token'])
             ->getJson('/api/v1/patients')
             ->assertUnauthorized();
     }

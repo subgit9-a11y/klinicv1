@@ -4,10 +4,10 @@ declare(strict_types=1);
 
 namespace App\Services\Treatments;
 
-use App\Models\TreatmentBooking;
-use App\Models\TreatmentRoom;
-use App\Models\TreatmentService as TreatmentServiceModel;
 use App\Models\Therapist;
+use App\Models\TreatmentBooking;
+use App\Models\TreatmentPlan;
+use App\Models\TreatmentService as TreatmentServiceModel;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
@@ -25,8 +25,9 @@ class TreatmentBookingService
     /**
      * Book a treatment session for a patient.
      *
-     * @param array{patient_id:int, treatment_service_id:int, therapist_id?:?int, treatment_room_id?:?int, treatment_plan_id?:?int, treatment_package_id?:?int, booking_date:string|Carbon, start_time:string, end_time?:?string, payment_mode?:string} $attributes
-     * @throws \App\Services\Treatments\BookingCollisionException
+     * @param  array{patient_id:int, treatment_service_id:int, therapist_id?:?int, treatment_room_id?:?int, treatment_plan_id?:?int, treatment_package_id?:?int, booking_date:string|Carbon, start_time:string, end_time?:?string, payment_mode?:string}  $attributes
+     *
+     * @throws BookingCollisionException
      */
     public function book(array $attributes): TreatmentBooking
     {
@@ -119,7 +120,7 @@ class TreatmentBookingService
                 ->when($excludeBookingId, fn ($q, $id) => $q->where('id', '!=', $id))
                 ->where(function ($q) use ($startTime, $endTime) {
                     $q->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                        ->where('end_time', '>', $startTime);
                 })
                 ->exists();
 
@@ -135,7 +136,7 @@ class TreatmentBookingService
                 ->when($excludeBookingId, fn ($q, $id) => $q->where('id', '!=', $id))
                 ->where(function ($q) use ($startTime, $endTime) {
                     $q->where('start_time', '<', $endTime)
-                      ->where('end_time', '>', $startTime);
+                        ->where('end_time', '>', $startTime);
                 })
                 ->exists();
 
@@ -155,7 +156,7 @@ class TreatmentBookingService
             ->when($excludeBookingId, fn ($q, $id) => $q->where('id', '!=', $id))
             ->where(function ($q) use ($startTime, $endTime) {
                 $q->where('start_time', '<', $endTime)
-                  ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->exists();
     }
@@ -170,7 +171,7 @@ class TreatmentBookingService
             ->when($excludeBookingId, fn ($q, $id) => $q->where('id', '!=', $id))
             ->where(function ($q) use ($startTime, $endTime) {
                 $q->where('start_time', '<', $endTime)
-                  ->where('end_time', '>', $startTime);
+                    ->where('end_time', '>', $startTime);
             })
             ->exists();
     }
@@ -184,9 +185,9 @@ class TreatmentBookingService
 
     private function incrementPlanProgress(int $planId): void
     {
-        \App\Models\TreatmentPlan::where('id', $planId)->increment('completed_sessions');
+        TreatmentPlan::where('id', $planId)->increment('completed_sessions');
 
-        $plan = \App\Models\TreatmentPlan::find($planId);
+        $plan = TreatmentPlan::find($planId);
         if ($plan && $plan->completed_sessions >= $plan->total_sessions) {
             $plan->update(['status' => 'COMPLETED', 'ends_at' => now()]);
         }

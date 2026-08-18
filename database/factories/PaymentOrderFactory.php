@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Invoice;
 use App\Models\PaymentOrder;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -18,8 +19,8 @@ class PaymentOrderFactory extends Factory
             'internal_order_id' => fake()->unique()->numerify('K360-ORD-######'),
             'gateway' => 'CASHFREE',
             'gateway_order_id' => fake()->unique()->numerify('cf-####'),
-            'payable_type' => \App\Models\Invoice::class,
-            'payable_id' => \App\Models\Invoice::factory(),
+            'payable_type' => Invoice::class,
+            'payable_id' => Invoice::factory(),
             'amount_cents' => fake()->numberBetween(10000, 500000),
             'currency' => 'INR',
             'customer_email' => fake()->optional()->safeEmail(),

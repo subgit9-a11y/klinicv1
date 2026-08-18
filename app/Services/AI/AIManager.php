@@ -61,12 +61,13 @@ class AIManager
             'estimated_cost_cents' => 0,
         ]);
 
-        if (!$this->provider->isConfigured()) {
+        if (! $this->provider->isConfigured()) {
             $request->update([
                 'status' => 'ERROR',
                 'output_status' => 'ERROR',
                 'error' => 'AI provider not configured',
             ]);
+
             return $request->refresh();
         }
 
@@ -76,6 +77,7 @@ class AIManager
                 'output_status' => 'ERROR',
                 'error' => 'No active prompt version found',
             ]);
+
             return $request->refresh();
         }
 
@@ -165,7 +167,7 @@ class AIManager
     private function renderTemplate(string $template, array $variables): string
     {
         foreach ($variables as $key => $value) {
-            $template = str_replace('{{' . $key . '}}', (string) $value, $template);
+            $template = str_replace('{{'.$key.'}}', (string) $value, $template);
         }
 
         return $template;

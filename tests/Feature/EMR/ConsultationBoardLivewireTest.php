@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Tests\Feature\EMR;
 
+use App\Livewire\EMR\ConsultationBoard;
 use App\Models\Consultation;
 use App\Models\Patient;
 use App\Models\Tenant;
@@ -32,7 +33,7 @@ class ConsultationBoardLivewireTest extends TestCase
         [$tenant, $owner] = $this->seedTenant();
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->assertStatus(200)
             ->assertSee(__('klinic360.emr.title'));
     }
@@ -46,7 +47,7 @@ class ConsultationBoardLivewireTest extends TestCase
         ]);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->call('selectPatient', $patient->id)
             ->assertSee($owner->name)
             ->assertSee(__('klinic360.emr.draft'));
@@ -58,7 +59,7 @@ class ConsultationBoardLivewireTest extends TestCase
         $patient = Patient::factory()->create(['tenant_id' => $tenant->id]);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->set('patientId', $patient->id)
             ->set('medicineSystem', 'AYURVEDA')
             ->call('startConsultation')
@@ -78,7 +79,7 @@ class ConsultationBoardLivewireTest extends TestCase
         $consultation = app(ConsultationService::class)->start(['patient_id' => $patient->id], $owner);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->call('openConsultation', $consultation->id)
             ->set('chiefComplaint', 'Knee pain')
             ->set('diagnosisSummary', 'Osteoarthritis')
@@ -96,7 +97,7 @@ class ConsultationBoardLivewireTest extends TestCase
         $consultation = app(ConsultationService::class)->start(['patient_id' => $patient->id], $owner);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->call('openConsultation', $consultation->id)
             ->set('chiefComplaint', 'Fever')
             ->call('completeConsultation');
@@ -112,7 +113,7 @@ class ConsultationBoardLivewireTest extends TestCase
         $consultation = app(ConsultationService::class)->start(['patient_id' => $patient->id, 'medicine_system' => 'AYURVEDA'], $owner);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->call('openConsultation', $consultation->id)
             ->set('dxName', 'Sandhivata')
             ->set('dxType', 'PRIMARY')
@@ -132,7 +133,7 @@ class ConsultationBoardLivewireTest extends TestCase
         $consultation = app(ConsultationService::class)->start(['patient_id' => $patient->id], $owner);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->call('openConsultation', $consultation->id)
             ->set('noteContent', 'Patient responding well')
             ->set('noteType', 'PROGRESS')
@@ -156,7 +157,7 @@ class ConsultationBoardLivewireTest extends TestCase
         ]);
 
         Livewire::actingAs($owner)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->call('selectPatient', $patient->id)
             ->call('openConsultation', $consultation->id)
             ->call('openAmendModal')
@@ -173,7 +174,7 @@ class ConsultationBoardLivewireTest extends TestCase
         $patient = Patient::factory()->create(['tenant_id' => $tenant->id]);
 
         Livewire::actingAs($therapist)
-            ->test(\App\Livewire\EMR\ConsultationBoard::class)
+            ->test(ConsultationBoard::class)
             ->set('patientId', $patient->id)
             ->call('startConsultation')
             ->assertStatus(403);

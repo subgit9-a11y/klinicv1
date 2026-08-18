@@ -7,7 +7,6 @@ namespace App\Services\Payments;
 use App\Contracts\PaymentGatewayInterface;
 use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Log;
-use RuntimeException;
 
 /**
  * Cashfree payment gateway implementation.
@@ -24,7 +23,9 @@ use RuntimeException;
 class CashfreePaymentProvider implements PaymentGatewayInterface
 {
     private readonly string $baseUrl;
+
     private readonly string $appId;
+
     private readonly string $secretKey;
 
     public function __construct()
@@ -59,7 +60,7 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
         string $customerPhone,
         array $metadata = []
     ): array {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'message' => 'Cashfree not configured'];
         }
 
@@ -98,7 +99,7 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
 
             Log::warning('Cashfree createOrder failed', ['status' => $response->status(), 'body' => $response->body()]);
 
-            return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'message' => 'Gateway error: ' . $response->status()];
+            return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'message' => 'Gateway error: '.$response->status()];
         } catch (\Throwable $e) {
             Log::error('Cashfree createOrder exception', ['error' => $e->getMessage()]);
 
@@ -111,7 +112,7 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
      */
     public function verify(string $gatewayOrderId): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['success' => false, 'verified' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'amount_cents' => null, 'message' => 'Cashfree not configured'];
         }
 
@@ -120,7 +121,7 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
                 ->timeout(30)
                 ->get("{$this->baseUrl}/orders/{$gatewayOrderId}/payments");
 
-            if (!$response->successful()) {
+            if (! $response->successful()) {
                 return ['success' => false, 'verified' => false, 'gateway_order_id' => $gatewayOrderId, 'gateway_payment_id' => null, 'amount_cents' => null, 'message' => 'Verification lookup failed'];
             }
 
@@ -154,7 +155,7 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
      */
     public function refund(string $gatewayPaymentId, int $amountCents, ?string $reason = null): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['success' => false, 'refund_id' => null, 'message' => 'Cashfree not configured'];
         }
 
@@ -178,7 +179,7 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
                 ];
             }
 
-            return ['success' => false, 'refund_id' => null, 'message' => 'Refund failed: ' . $response->status()];
+            return ['success' => false, 'refund_id' => null, 'message' => 'Refund failed: '.$response->status()];
         } catch (\Throwable $e) {
             Log::error('Cashfree refund exception', ['error' => $e->getMessage()]);
 
@@ -191,12 +192,12 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
      * SHA-256 signature in the `X-Cf-Signature` header computed over
      * the raw payload body + timestamp.
      *
-     * @param array $payload  Parsed webhook body (for reference)
-     * @param string $signature  Raw signature header value
+     * @param  array  $payload  Parsed webhook body (for reference)
+     * @param  string  $signature  Raw signature header value
      */
     public function verifyWebhookSignature(array $payload, string $signature): bool
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return false;
         }
 

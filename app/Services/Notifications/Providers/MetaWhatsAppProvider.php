@@ -17,7 +17,9 @@ use Illuminate\Support\Facades\Log;
 class MetaWhatsAppProvider implements WhatsAppProviderInterface
 {
     private readonly string $apiToken;
+
     private readonly string $phoneNumberId;
+
     private readonly string $apiVersion;
 
     public function __construct()
@@ -39,7 +41,7 @@ class MetaWhatsAppProvider implements WhatsAppProviderInterface
 
     public function send(string $to, string $templateName, array $variables = []): array
     {
-        if (!$this->isConfigured()) {
+        if (! $this->isConfigured()) {
             return ['success' => false, 'reference' => null, 'message' => 'WhatsApp not configured'];
         }
 
@@ -70,7 +72,7 @@ class MetaWhatsAppProvider implements WhatsAppProviderInterface
 
             Log::warning('WhatsApp send failed', ['status' => $response->status(), 'body' => $response->body()]);
 
-            return ['success' => false, 'reference' => null, 'message' => 'API error: ' . $response->status()];
+            return ['success' => false, 'reference' => null, 'message' => 'API error: '.$response->status()];
         } catch (\Throwable $e) {
             Log::error('WhatsApp send exception', ['error' => $e->getMessage()]);
 

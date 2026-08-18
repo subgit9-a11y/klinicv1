@@ -16,6 +16,7 @@ use App\Services\Storage\S3StorageProvider;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Http\UploadedFile;
+use Illuminate\Support\Facades\Storage;
 use Tests\TestCase;
 
 class DocumentServiceTest extends TestCase
@@ -40,7 +41,7 @@ class DocumentServiceTest extends TestCase
     public function test_storage_store_and_exists_roundtrip(): void
     {
         $provider = app(S3StorageProvider::class);
-        $path = 'test/' . uniqid() . '.txt';
+        $path = 'test/'.uniqid().'.txt';
 
         $stored = $provider->store('test content', $path, 'text/plain');
 
@@ -54,7 +55,7 @@ class DocumentServiceTest extends TestCase
     public function test_storage_delete_removes_file(): void
     {
         $provider = app(S3StorageProvider::class);
-        $path = 'test/' . uniqid() . '.txt';
+        $path = 'test/'.uniqid().'.txt';
         $provider->store('content', $path);
 
         $deleted = $provider->delete($path);
@@ -162,7 +163,7 @@ class DocumentServiceTest extends TestCase
         $this->assertStringContainsString('test.pdf', $path);
 
         // Cleanup.
-        \Illuminate\Support\Facades\Storage::disk('local')->delete($path);
+        Storage::disk('local')->delete($path);
     }
 
     public function test_pdf_service_generates_actual_pdf_binary_for_prescription(): void

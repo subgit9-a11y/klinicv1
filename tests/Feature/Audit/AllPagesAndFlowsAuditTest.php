@@ -2,10 +2,26 @@
 
 namespace Tests\Feature\Audit;
 
-use App\Models\Tenant;
-use App\Models\User;
+use App\Livewire\Patients\Patient360;
+use App\Models\Invoice;
+use App\Models\IpdAdmission;
 use App\Models\Patient;
+use App\Models\Payment;
+use App\Models\Prescription;
+use App\Models\Tenant;
+use App\Models\TenantSetting;
+use App\Models\Therapist;
+use App\Models\TreatmentBooking;
+use App\Models\TreatmentRoom;
+use App\Models\TreatmentService;
+use App\Models\User;
+use App\Services\Auth\TokenService;
+use App\Services\Tenancy\TenantContext;
+use Database\Seeders\AdminUserSeeder;
+use Database\Seeders\PlanSeeder;
+use Database\Seeders\SystemSettingsSeeder;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Livewire\Livewire;
 use Tests\TestCase;
 
 class AllPagesAndFlowsAuditTest extends TestCase
@@ -13,15 +29,17 @@ class AllPagesAndFlowsAuditTest extends TestCase
     use RefreshDatabase;
 
     private Tenant $tenant;
+
     private User $owner;
+
     private User $superAdmin;
 
     protected function setUp(): void
     {
         parent::setUp();
-        $this->seed(\Database\Seeders\PlanSeeder::class);
-        $this->seed(\Database\Seeders\SystemSettingsSeeder::class);
-        $this->seed(\Database\Seeders\AdminUserSeeder::class);
+        $this->seed(PlanSeeder::class);
+        $this->seed(SystemSettingsSeeder::class);
+        $this->seed(AdminUserSeeder::class);
 
         $this->tenant = Tenant::where('slug', 'ayur-clinic-demo')->first();
         $this->owner = User::where('email', 'owner@ayurclinic.test')->first();
@@ -62,7 +80,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_dashboard_shows_live_stats_not_placeholders(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $resp = $this->actingAs($this->owner)->get('/dashboard');
         $this->assertSame(200, $resp->status());
@@ -74,7 +92,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_reports_page_renders_live_data(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $resp = $this->actingAs($this->owner)->get('/reports');
         $this->assertSame(200, $resp->status(), 'Reports page should render for clinic owner.');
@@ -90,7 +108,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_ai_page_renders_for_clinic_owner(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $resp = $this->actingAs($this->owner)->get('/ai');
         $this->assertSame(200, $resp->status(), 'AI page should render for clinic owner.');
@@ -99,7 +117,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_notifications_page_renders(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $resp = $this->actingAs($this->owner)->get('/notifications');
         $this->assertSame(200, $resp->status(), 'Notifications page should render.');
@@ -108,7 +126,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_documents_page_renders(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $resp = $this->actingAs($this->owner)->get('/documents');
         $this->assertSame(200, $resp->status(), 'Documents list page should render.');
@@ -117,13 +135,13 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_prescription_pdf_download(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
         $patient = Patient::create([
             'tenant_id' => $this->tenant->id, 'k360_uid' => 'K360-P-PDF1',
             'first_name' => 'Pdf', 'last_name' => 'Test', 'full_name' => 'Pdf Test',
             'phone' => '9111111111', 'is_active' => true,
         ]);
-        $rx = \App\Models\Prescription::factory()->create([
+        $rx = Prescription::factory()->create([
             'tenant_id' => $this->tenant->id,
             'patient_id' => $patient->id,
         ]);
@@ -136,13 +154,13 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_invoice_pdf_download(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
         $patient = Patient::create([
             'tenant_id' => $this->tenant->id, 'k360_uid' => 'K360-P-PDF2',
             'first_name' => 'Inv', 'last_name' => 'Test', 'full_name' => 'Inv Test',
             'phone' => '9222222222', 'is_active' => true,
         ]);
-        $invoice = \App\Models\Invoice::factory()->create([
+        $invoice = Invoice::factory()->create([
             'tenant_id' => $this->tenant->id,
             'patient_id' => $patient->id,
         ]);
@@ -155,7 +173,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_public_online_booking_page_renders_guest(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $resp = $this->get('/book');
         $this->assertSame(200, $resp->status(), 'Public booking page must be guest-accessible.');
@@ -164,8 +182,8 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_public_online_booking_creates_appointment(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
-        $doctor = \App\Models\User::factory()->forTenant($this->tenant)->role('DOCTOR')->create();
+        app(TenantContext::class)->set($this->tenant->id);
+        $doctor = User::factory()->forTenant($this->tenant)->role('DOCTOR')->create();
 
         $resp = $this->post('/book', [
             'first_name' => 'Public',
@@ -188,7 +206,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_ipd_page_renders(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $resp = $this->actingAs($this->owner)->get('/ipd');
         $this->assertSame(200, $resp->status(), 'IPD page should render.');
@@ -198,7 +216,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_ipd_admit_discharge_flow(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
         $patient = Patient::create([
             'tenant_id' => $this->tenant->id, 'k360_uid' => 'K360-P-IPD1',
             'first_name' => 'Ipd', 'last_name' => 'Patient', 'full_name' => 'Ipd Patient',
@@ -217,7 +235,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
             'status' => 'ADMITTED',
         ]);
 
-        $admission = \App\Models\IpdAdmission::where('patient_id', $patient->id)->first();
+        $admission = IpdAdmission::where('patient_id', $patient->id)->first();
 
         // Discharge
         $resp = $this->actingAs($this->owner)->post(route('ipd.discharge', $admission), [
@@ -233,7 +251,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_billing_page_renders(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $resp = $this->actingAs($this->owner)->get('/billing');
         $this->assertSame(200, $resp->status(), 'Billing page should render.');
@@ -243,7 +261,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_billing_invoice_issue_pay_flow(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
         $patient = Patient::create([
             'tenant_id' => $this->tenant->id, 'k360_uid' => 'K360-P-BIL1',
             'first_name' => 'Bill', 'last_name' => 'Patient', 'full_name' => 'Bill Patient',
@@ -256,7 +274,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
             'source' => 'OPD',
         ]);
         $resp->assertRedirect(route('billing.index'));
-        $invoice = \App\Models\Invoice::where('patient_id', $patient->id)->latest()->first();
+        $invoice = Invoice::where('patient_id', $patient->id)->latest()->first();
         $this->assertSame('DRAFT', $invoice->status);
 
         // Add a line item
@@ -283,7 +301,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_patient_360_renders_every_tab_without_placeholder(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $patient = Patient::create([
             'tenant_id' => $this->tenant->id, 'k360_uid' => 'K360-P-TABS',
@@ -298,8 +316,8 @@ class AllPagesAndFlowsAuditTest extends TestCase
         ];
 
         foreach ($tabs as $tab) {
-            $testable = \Livewire\Livewire::actingAs($this->owner)
-                ->test(\App\Livewire\Patients\Patient360::class, ['patient' => $patient])
+            $testable = Livewire::actingAs($this->owner)
+                ->test(Patient360::class, ['patient' => $patient])
                 ->call('setTab', $tab);
             $body = $testable->html();
             $this->assertStringNotContainsString(
@@ -326,24 +344,24 @@ class AllPagesAndFlowsAuditTest extends TestCase
             'first_name' => 'T', 'last_name' => 'P', 'full_name' => 'T P',
             'phone' => '9999999888', 'is_active' => true,
         ]);
-        $service = \App\Models\TreatmentService::create([
+        $service = TreatmentService::create([
             'tenant_id' => $this->tenant->id, 'name' => 'Abhyanga',
             'category' => 'PANCHAKARMA', 'medicine_system' => 'AYURVEDA',
             'duration_minutes' => 60, 'price_cents' => 150000, 'currency' => 'INR',
             'requires_therapist' => true, 'requires_room' => true, 'is_active' => true,
         ]);
-        $room = \App\Models\TreatmentRoom::create([
+        $room = TreatmentRoom::create([
             'tenant_id' => $this->tenant->id, 'room_number' => 'R1',
             'type' => 'TREATMENT', 'is_active' => true,
         ]);
-        $therapist = \App\Models\Therapist::create([
+        $therapist = Therapist::create([
             'tenant_id' => $this->tenant->id, 'name' => 'Therapist 1',
             'is_active' => true,
         ]);
 
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
-        $issued = app(\App\Services\Auth\TokenService::class)->create($this->owner, 'audit', ['*']);
+        $issued = app(TokenService::class)->create($this->owner, 'audit', ['*']);
         $headers = ['Authorization' => 'Bearer '.$issued['token']];
 
         $resp = $this->withHeaders($headers)->postJson('/api/v1/treatments', [
@@ -354,11 +372,11 @@ class AllPagesAndFlowsAuditTest extends TestCase
             'booking_date' => now()->addDay()->toDateString(),
             'start_time' => '11:00', 'end_time' => '12:00',
         ]);
-        $this->assertSame(201, $resp->status(), "Treatment create failed: ".$resp->content());
+        $this->assertSame(201, $resp->status(), 'Treatment create failed: '.$resp->content());
         $id = $resp->json('data.id');
 
         $complete = $this->withHeaders($headers)->postJson("/api/v1/treatments/{$id}/complete");
-        $this->assertSame(200, $complete->status(), "Treatment complete failed: ".$complete->content());
+        $this->assertSame(200, $complete->status(), 'Treatment complete failed: '.$complete->content());
 
         // Validation should reject a non-existent therapists id now (not a users id).
         $bad = $this->withHeaders($headers)->postJson('/api/v1/treatments', [
@@ -373,21 +391,21 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_treatments_web_page_renders_live_data(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $patient = Patient::create([
             'tenant_id' => $this->tenant->id, 'k360_uid' => 'K360-P-TRT-WEB',
             'first_name' => 'T', 'last_name' => 'W', 'full_name' => 'T W',
             'phone' => '9888777666', 'is_active' => true,
         ]);
-        $service = \App\Models\TreatmentService::create([
+        $service = TreatmentService::create([
             'tenant_id' => $this->tenant->id, 'name' => 'Shirodhara',
             'category' => 'PANCHAKARMA', 'medicine_system' => 'AYURVEDA',
             'duration_minutes' => 45, 'price_cents' => 200000, 'currency' => 'INR',
             'requires_therapist' => true, 'requires_room' => true, 'is_active' => true,
         ]);
 
-        \App\Models\TreatmentBooking::create([
+        TreatmentBooking::create([
             'tenant_id' => $this->tenant->id, 'patient_id' => $patient->id,
             'treatment_service_id' => $service->id,
             'booking_date' => now()->toDateString(),
@@ -403,14 +421,14 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_prescriptions_web_page_and_show_render(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $patient = Patient::create([
             'tenant_id' => $this->tenant->id, 'k360_uid' => 'K360-P-RX-WEB',
             'first_name' => 'R', 'last_name' => 'X', 'full_name' => 'R X',
             'phone' => '9888777665', 'is_active' => true,
         ]);
-        $prescription = \App\Models\Prescription::create([
+        $prescription = Prescription::create([
             'tenant_id' => $this->tenant->id, 'patient_id' => $patient->id,
             'user_id' => $this->owner->id, 'status' => 'ACTIVE',
             'issued_at' => now(),
@@ -431,14 +449,14 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_payments_web_page_renders_totals(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $patient = Patient::create([
             'tenant_id' => $this->tenant->id, 'k360_uid' => 'K360-P-PAY-WEB',
             'first_name' => 'P', 'last_name' => 'Y', 'full_name' => 'P Y',
             'phone' => '9888777664', 'is_active' => true,
         ]);
-        \App\Models\Payment::create([
+        Payment::create([
             'tenant_id' => $this->tenant->id, 'patient_id' => $patient->id,
             'payment_number' => 'PAY-AUDIT-1', 'gateway' => 'CASH', 'method' => 'CASH',
             'amount_cents' => 50000, 'currency' => 'INR', 'status' => 'SUCCESS',
@@ -453,7 +471,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
     public function test_audit_settings_web_page_create_and_update_flow(): void
     {
-        app(\App\Services\Tenancy\TenantContext::class)->set($this->tenant->id);
+        app(TenantContext::class)->set($this->tenant->id);
 
         $index = $this->actingAs($this->owner)->get('/settings');
         $this->assertSame(200, $index->status());
@@ -467,7 +485,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
         $list = $this->actingAs($this->owner)->get('/settings');
         $this->assertStringContainsString('audit_clinic_name', $list->getContent());
 
-        $existing = \App\Models\TenantSetting::withoutGlobalScopes()
+        $existing = TenantSetting::withoutGlobalScopes()
             ->where('tenant_id', $this->tenant->id)->where('key', 'audit_clinic_name')->first();
         $update = $this->actingAs($this->owner)->post('/settings', [
             'settings' => [[

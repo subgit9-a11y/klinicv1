@@ -35,7 +35,7 @@ class ApiClinicalFlowsTest extends TestCase
     {
         $issued = app(TokenService::class)->create($user, 'test', ['*']);
 
-        return ['Authorization' => 'Bearer ' . $issued['token']];
+        return ['Authorization' => 'Bearer '.$issued['token']];
     }
 
     private function consultation(Tenant $tenant, User $doctor, Patient $patient): Consultation

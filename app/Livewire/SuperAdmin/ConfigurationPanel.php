@@ -6,11 +6,8 @@ namespace App\Livewire\SuperAdmin;
 
 use App\Models\AiFeature;
 use App\Models\AiModel;
-use App\Models\AiPrompt;
-use App\Models\AiPromptVersion;
 use App\Models\FeatureFlag;
 use App\Models\Plan;
-use App\Models\PlanFeature;
 use App\Services\Audit\AuditService;
 use Illuminate\Support\Facades\Artisan;
 use Livewire\Component;
@@ -31,28 +28,45 @@ class ConfigurationPanel extends Component
 
     // Plan form
     public ?int $editingPlanId = null;
+
     public string $plan_name = '';
+
     public string $plan_code = '';
+
     public int $plan_price_cents = 0;
+
     public string $plan_billing_cycle = 'MONTHLY';
+
     public int $plan_max_users = 1;
+
     public int $plan_max_doctors = 1;
+
     public bool $plan_is_active = true;
 
     // Feature flag form
     public ?int $editingFeatureId = null;
+
     public string $feature_key = '';
+
     public string $feature_description = '';
+
     public bool $feature_is_global = true;
+
     public bool $feature_default_enabled = true;
 
     // AI model form
     public ?int $editingAiModelId = null;
+
     public string $ai_model_id = '';
+
     public string $ai_display_name = '';
+
     public string $ai_provider = 'gemini';
+
     public bool $ai_supports_vision = false;
+
     public bool $ai_supports_structured = false;
+
     public bool $ai_is_active = true;
 
     protected function rules(): array
@@ -60,7 +74,7 @@ class ConfigurationPanel extends Component
         return match ($this->activeTab) {
             'plans' => [
                 'plan_name' => 'required|string|max:120',
-                'plan_code' => 'required|string|max:48|unique:plans,code,' . ($this->editingPlanId ?? 'NULL'),
+                'plan_code' => 'required|string|max:48|unique:plans,code,'.($this->editingPlanId ?? 'NULL'),
                 'plan_price_cents' => 'required|integer|min:0',
                 'plan_billing_cycle' => 'required|in:MONTHLY,YEARLY',
                 'plan_max_users' => 'required|integer|min:1',
@@ -68,7 +82,7 @@ class ConfigurationPanel extends Component
                 'plan_is_active' => 'boolean',
             ],
             'features' => [
-                'feature_key' => 'required|string|max:64|unique:feature_flags,key,' . ($this->editingFeatureId ?? 'NULL'),
+                'feature_key' => 'required|string|max:64|unique:feature_flags,key,'.($this->editingFeatureId ?? 'NULL'),
                 'feature_description' => 'nullable|string|max:255',
                 'feature_is_global' => 'boolean',
                 'feature_default_enabled' => 'boolean',
@@ -166,6 +180,8 @@ class ConfigurationPanel extends Component
             $this->dispatch('feature-created');
         }
 
+        FeatureFlag::flushCache($data['key']);
+
         $this->audit->record('superadmin.feature_flag.saved', 'super_admin', ['after' => $data], null, auth()->user());
 
         $this->resetForm();
@@ -173,7 +189,12 @@ class ConfigurationPanel extends Component
 
     public function deleteFeature(int $id): void
     {
-        FeatureFlag::find($id)?->delete();
+        $flag = FeatureFlag::find($id);
+        $key = $flag?->key;
+        $flag?->delete();
+        if ($key !== null) {
+            FeatureFlag::flushCache($key);
+        }
         $this->audit->record('superadmin.feature_flag.deleted', 'super_admin', ['after' => ['id' => $id]], null, auth()->user());
         $this->dispatch('feature-deleted');
     }

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\EMR;
 
+use App\Models\ClinicalNote;
 use App\Models\Consultation;
 use App\Models\Diagnosis;
 use App\Models\Patient;
@@ -176,7 +177,7 @@ class ConsultationService
     /**
      * Add a free-text clinical note (progress/nursing/observation).
      */
-    public function addNote(int $patientId, string $content, User $author, string $noteType = 'PROGRESS', ?int $consultationId = null): \App\Models\ClinicalNote
+    public function addNote(int $patientId, string $content, User $author, string $noteType = 'PROGRESS', ?int $consultationId = null): ClinicalNote
     {
         $tenantId = $this->requireTenant();
 
@@ -184,7 +185,7 @@ class ConsultationService
             throw ValidationException::withMessages(['note_type' => 'Invalid note type.']);
         }
 
-        return \App\Models\ClinicalNote::create([
+        return ClinicalNote::create([
             'tenant_id' => $tenantId,
             'patient_id' => $patientId,
             'consultation_id' => $consultationId,

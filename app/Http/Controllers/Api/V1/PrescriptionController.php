@@ -12,11 +12,12 @@ use App\Services\EMR\PrescriptionService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
+/**
+ * @group Prescriptions
+ */
 class PrescriptionController extends Controller
 {
-    public function __construct(private readonly PrescriptionService $prescriptionService)
-    {
-    }
+    public function __construct(private readonly PrescriptionService $prescriptionService) {}
 
     public function index(): AnonymousResourceCollection
     {

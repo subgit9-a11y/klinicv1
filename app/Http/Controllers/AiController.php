@@ -11,9 +11,7 @@ use Illuminate\Http\Request;
 
 class AiController extends Controller
 {
-    public function __construct(private readonly AIManager $ai)
-    {
-    }
+    public function __construct(private readonly AIManager $ai) {}
 
     public function index(Request $request)
     {

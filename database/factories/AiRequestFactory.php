@@ -4,7 +4,6 @@ namespace Database\Factories;
 
 use App\Models\AiRequest;
 use App\Models\Patient;
-use App\Models\Tenant;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;

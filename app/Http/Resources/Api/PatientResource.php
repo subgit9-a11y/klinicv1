@@ -16,7 +16,7 @@ class PatientResource extends JsonResource
             'k360_uid' => $this->k360_uid,
             'first_name' => $this->first_name,
             'last_name' => $this->last_name,
-            'full_name' => $this->first_name . ' ' . $this->last_name,
+            'full_name' => $this->first_name.' '.$this->last_name,
             'phone' => $this->phone,
             'email' => $this->email,
             'gender' => $this->gender,

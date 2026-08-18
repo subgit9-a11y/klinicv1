@@ -6,8 +6,8 @@ namespace Tests\Feature\Rbac;
 
 use App\Models\Tenant;
 use App\Models\User;
-use App\Services\Auth\PermissionService;
 use App\Services\Auth\Permissions;
+use App\Services\Auth\PermissionService;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Support\Facades\Gate;
 use Tests\TestCase;

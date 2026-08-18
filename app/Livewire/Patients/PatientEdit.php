@@ -6,6 +6,7 @@ namespace App\Livewire\Patients;
 
 use App\Models\Patient;
 use App\Services\Patients\PatientService;
+use Illuminate\Database\QueryException;
 use Livewire\Component;
 
 class PatientEdit extends Component
@@ -81,7 +82,7 @@ class PatientEdit extends Component
             session()->flash('patient-message', __('klinic360.patients.updated'));
 
             $this->redirect(route('patients.show', $this->patient), navigate: false);
-        } catch (\Illuminate\Database\QueryException $e) {
+        } catch (QueryException $e) {
             if (str_contains((string) $e->getMessage(), 'phone')) {
                 $this->addError('phone', __('klinic360.patients.duplicate_phone'));
             } else {

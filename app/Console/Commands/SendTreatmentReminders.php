@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 class SendTreatmentReminders extends Command
 {
     protected $signature = 'klinic:send-treatment-reminders';
+
     protected $description = 'Send reminders for treatment sessions scheduled within the next 24 hours';
 
     public function handle(NotificationService $notifications): int
@@ -38,6 +39,7 @@ class SendTreatmentReminders extends Command
         }
 
         $this->info("Sent {$sent} treatment reminders.");
+
         return self::SUCCESS;
     }
 }

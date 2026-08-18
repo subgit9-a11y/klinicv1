@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use App\Services\Auth\PermissionService;
 use Database\Factories\UserFactory;
 use Illuminate\Contracts\Auth\MustVerifyEmail;
 use Illuminate\Database\Eloquent\Attributes\Fillable;
@@ -20,6 +21,15 @@ class User extends Authenticatable implements MustVerifyEmail
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable;
+
+    protected static function booted(): void
+    {
+        // Flush the cached permission set whenever a user is saved so that
+        // role changes and per-user override updates take effect immediately.
+        static::saved(function (User $user) {
+            app(PermissionService::class)->flush($user);
+        });
+    }
 
     protected function casts(): array
     {
@@ -70,17 +80,17 @@ class User extends Authenticatable implements MustVerifyEmail
 
     public function hasPermission(string $permission): bool
     {
-        return app(\App\Services\Auth\PermissionService::class)->can($this, $permission);
+        return app(PermissionService::class)->can($this, $permission);
     }
 
     public function hasAnyPermission(array $permissions): bool
     {
-        return app(\App\Services\Auth\PermissionService::class)->canAny($this, $permissions);
+        return app(PermissionService::class)->canAny($this, $permissions);
     }
 
     public function hasAllPermissions(array $permissions): bool
     {
-        return app(\App\Services\Auth\PermissionService::class)->canAll($this, $permissions);
+        return app(PermissionService::class)->canAll($this, $permissions);
     }
 
     public function hasTwoFactorEnabled(): bool

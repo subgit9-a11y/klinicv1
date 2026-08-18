@@ -12,11 +12,12 @@ use App\Services\Appointments\AppointmentService;
 use Illuminate\Http\Resources\Json\AnonymousResourceCollection;
 use Illuminate\Http\Response;
 
+/**
+ * @group Appointments
+ */
 class AppointmentController extends Controller
 {
-    public function __construct(private readonly AppointmentService $appointmentService)
-    {
-    }
+    public function __construct(private readonly AppointmentService $appointmentService) {}
 
     public function index(): AnonymousResourceCollection
     {

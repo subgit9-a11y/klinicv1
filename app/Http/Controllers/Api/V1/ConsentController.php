@@ -10,11 +10,12 @@ use App\Services\EMR\ConsentService;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
 
+/**
+ * @group Patient Consents
+ */
 class ConsentController extends Controller
 {
-    public function __construct(private readonly ConsentService $consentService)
-    {
-    }
+    public function __construct(private readonly ConsentService $consentService) {}
 
     public function index(Request $request): Response
     {

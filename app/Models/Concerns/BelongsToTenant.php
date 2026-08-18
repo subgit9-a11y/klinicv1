@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Models\Concerns;
 
+use App\Models\Tenant;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Builder;
 
@@ -39,6 +40,6 @@ trait BelongsToTenant
 
     public function tenant()
     {
-        return $this->belongsTo(\App\Models\Tenant::class);
+        return $this->belongsTo(Tenant::class);
     }
 }

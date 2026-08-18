@@ -32,7 +32,7 @@ class BillingService
     /**
      * Create a draft invoice.
      *
-     * @param array{patient_id:int, appointment_id?:?int, consultation_id?:?int, ipd_admission_id?:?int, source?:string, currency?:string, notes?:?string} $attributes
+     * @param  array{patient_id:int, appointment_id?:?int, consultation_id?:?int, ipd_admission_id?:?int, source?:string, currency?:string, notes?:?string}  $attributes
      */
     public function createInvoice(array $attributes): Invoice
     {
@@ -52,7 +52,7 @@ class BillingService
     /**
      * Add a line item to an invoice. Only allowed while DRAFT.
      *
-     * @param array{description:string, type?:string, quantity?:int, unit_price_cents:int, discount_cents?:int, currency?:string} $item
+     * @param  array{description:string, type?:string, quantity?:int, unit_price_cents:int, discount_cents?:int, currency?:string}  $item
      */
     public function addInvoiceItem(Invoice $invoice, array $item): InvoiceItem
     {
@@ -109,11 +109,11 @@ class BillingService
      * Record a payment against an invoice. Handles partial payments and
      * transitions status accordingly.
      *
-     * @param array{method:string, amount_cents:int, gateway?:string, gateway_payment_id?:?string, gateway_order_id?:?string, cheque_number?:?string, bank_name?:?string, notes?:?string, cash_register_id?:?int, collected_by?:?int} $attributes
+     * @param  array{method:string, amount_cents:int, gateway?:string, gateway_payment_id?:?string, gateway_order_id?:?string, cheque_number?:?string, bank_name?:?string, notes?:?string, cash_register_id?:?int, collected_by?:?int}  $attributes
      */
     public function recordPayment(Invoice $invoice, array $attributes): Payment
     {
-        if (!in_array($invoice->status, ['ISSUED', 'PARTIALLY_PAID'])) {
+        if (! in_array($invoice->status, ['ISSUED', 'PARTIALLY_PAID'])) {
             throw new \DomainException('Payments can only be recorded against ISSUED or PARTIALLY_PAID invoices.');
         }
 
@@ -162,7 +162,7 @@ class BillingService
      * Issue a refund against a payment. The invoice status transitions
      * to REFUNDED if the full amount is refunded.
      *
-     * @param array{amount_cents:int, reason?:?string, gateway_refund_id?:?string} $attributes
+     * @param  array{amount_cents:int, reason?:?string, gateway_refund_id?:?string}  $attributes
      */
     public function refund(Payment $payment, array $attributes): Refund
     {
@@ -216,7 +216,7 @@ class BillingService
         $invoice->update([
             'status' => 'VOID',
             'voided_at' => now(),
-            'notes' => $reason ? $invoice->notes . "\n[VOIDED] " . $reason : $invoice->notes,
+            'notes' => $reason ? $invoice->notes."\n[VOIDED] ".$reason : $invoice->notes,
         ]);
 
         return $invoice->refresh();
@@ -236,16 +236,16 @@ class BillingService
 
     private function generateInvoiceNumber(): string
     {
-        return 'K360-INV-' . str_pad((string) (Invoice::max('id') + 1), 6, '0', STR_PAD_LEFT);
+        return 'K360-INV-'.str_pad((string) (Invoice::max('id') + 1), 6, '0', STR_PAD_LEFT);
     }
 
     private function generatePaymentNumber(): string
     {
-        return 'K360-PAY-' . str_pad((string) (Payment::max('id') + 1), 6, '0', STR_PAD_LEFT);
+        return 'K360-PAY-'.str_pad((string) (Payment::max('id') + 1), 6, '0', STR_PAD_LEFT);
     }
 
     private function generateRefundNumber(): string
     {
-        return 'K360-REF-' . str_pad((string) (Refund::max('id') + 1), 6, '0', STR_PAD_LEFT);
+        return 'K360-REF-'.str_pad((string) (Refund::max('id') + 1), 6, '0', STR_PAD_LEFT);
     }
 }

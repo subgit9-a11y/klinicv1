@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Tests\Feature\Api;
 
 use App\Models\IpdAdmission;
-use App\Models\IpdBed;
 use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;
@@ -27,7 +26,7 @@ class ApiIpdTest extends TestCase
     {
         $issued = app(TokenService::class)->create($user, 'test', ['*']);
 
-        return ['Authorization' => 'Bearer ' . $issued['token']];
+        return ['Authorization' => 'Bearer '.$issued['token']];
     }
 
     public function test_can_list_ipd_admissions(): void

@@ -1,5 +1,6 @@
 <?php
 
+use App\Contracts\StorageProviderInterface;
 use App\Http\Controllers\AiController;
 use App\Http\Controllers\BillingController;
 use App\Http\Controllers\DashboardController;
@@ -13,11 +14,13 @@ use App\Http\Controllers\ReportController;
 use App\Http\Controllers\SettingController;
 use App\Http\Controllers\TreatmentController;
 use App\Livewire\Appointments\AppointmentBoard;
+use App\Livewire\EMR\ConsultationBoard;
 use App\Livewire\Patients\Patient360;
 use App\Livewire\Patients\PatientEdit;
 use App\Livewire\Patients\PatientList;
 use App\Livewire\Profile\Profile;
 use App\Livewire\Queue\QueueBoard;
+use App\Livewire\SuperAdmin\ConfigurationPanel;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -38,8 +41,8 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
 
     Route::get('/appointments', AppointmentBoard::class)->name('appointments.index');
     Route::get('/queue', QueueBoard::class)->name('queue.index');
-    Route::get('/emr', \App\Livewire\EMR\ConsultationBoard::class)->name('emr.index');
-    Route::get('/emr/{patientId}', \App\Livewire\EMR\ConsultationBoard::class)->name('emr.patient');
+    Route::get('/emr', ConsultationBoard::class)->name('emr.index');
+    Route::get('/emr/{patientId}', ConsultationBoard::class)->name('emr.patient');
 
     Route::get('/treatments', [TreatmentController::class, 'index'])->name('treatments.index');
     Route::post('/treatments', [TreatmentController::class, 'book'])->name('treatments.book');
@@ -88,13 +91,14 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
         if ($decoded === false) {
             abort(400);
         }
-        if (!request()->hasValidSignature()) {
+        if (! request()->hasValidSignature()) {
             abort(403);
         }
-        $provider = app(\App\Contracts\StorageProviderInterface::class);
-        if (!$provider->exists($decoded)) {
+        $provider = app(StorageProviderInterface::class);
+        if (! $provider->exists($decoded)) {
             abort(404);
         }
+
         return response()->stream(function () use ($provider, $decoded) {
             $stream = $provider->stream($decoded);
             fpassthru($stream);
@@ -104,7 +108,7 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
 });
 
 Route::middleware(['auth', 'active', 'verified', '2fa'])->group(function () {
-    Route::get('/super-admin/configuration', \App\Livewire\SuperAdmin\ConfigurationPanel::class)
+    Route::get('/super-admin/configuration', ConfigurationPanel::class)
         ->name('super-admin.configuration');
 });
 

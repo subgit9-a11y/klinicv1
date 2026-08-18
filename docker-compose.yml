@@ -1,0 +1,65 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: klinic360:latest
+    ports:
+      - "${APP_PORT:-8080}:80"
+    volumes:
+      - .:/var/www/html
+      - storage:/var/www/html/storage
+    environment:
+      - DB_HOST=mysql
+      - DB_DATABASE=${DB_DATABASE:-klinic360}
+      - DB_USERNAME=${DB_USERNAME:-klinic}
+      - DB_PASSWORD=${DB_PASSWORD:-secret}
+      - REDIS_HOST=redis
+      - CACHE_STORE=redis
+      - QUEUE_CONNECTION=redis
+      - SESSION_DRIVER=redis
+    depends_on:
+      mysql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    networks:
+      - klinicnet
+
+  mysql:
+    image: mariadb:11
+    environment:
+      - MYSQL_DATABASE=${DB_DATABASE:-klinic360}
+      - MYSQL_USER=${DB_USERNAME:-klinic}
+      - MYSQL_PASSWORD=${DB_PASSWORD:-secret}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD:-rootsecret}
+    volumes:
+      - mysql:/var/lib/mysql
+    ports:
+      - "${DB_PORT:-3306}:3306"
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    networks:
+      - klinicnet
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --maxmemory 256mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis:/data
+    ports:
+      - "${REDIS_PORT:-6379}:6379"
+    networks:
+      - klinicnet
+
+volumes:
+  storage:
+  mysql:
+  redis:
+
+networks:
+  klinicnet:
+    driver: bridge

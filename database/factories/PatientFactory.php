@@ -4,6 +4,7 @@ namespace Database\Factories;
 
 use App\Models\Patient;
 use App\Services\Patients\PatientUidService;
+use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
 
 /**
@@ -18,7 +19,7 @@ class PatientFactory extends Factory
         return [
             // tenant_id is force-stamped by BelongsToTenant from TenantContext
             // when a tenant is active; left null here so the trait populates it.
-            'tenant_id' => app(\App\Services\Tenancy\TenantContext::class)->id(),
+            'tenant_id' => app(TenantContext::class)->id(),
             'k360_uid' => app(PatientUidService::class)->generate(),
             'first_name' => fake()->firstName($gender === 'OTHER' ? null : strtolower($gender)),
             'last_name' => fake()->lastName(),

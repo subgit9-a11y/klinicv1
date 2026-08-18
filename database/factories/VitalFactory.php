@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Patient;
 use App\Models\Vital;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -15,7 +16,7 @@ class VitalFactory extends Factory
     {
         return [
             'tenant_id' => app(TenantContext::class)->id(),
-            'patient_id' => \App\Models\Patient::factory(),
+            'patient_id' => Patient::factory(),
             'consultation_id' => null,
             'recorded_by' => null,
             'systolic_bp' => fake()->numerify('1##'),

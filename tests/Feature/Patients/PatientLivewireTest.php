@@ -7,6 +7,8 @@ namespace Tests\Feature\Patients;
 use App\Livewire\Patients\Patient360;
 use App\Livewire\Patients\PatientEdit;
 use App\Livewire\Patients\PatientList;
+use App\Models\Appointment;
+use App\Models\Invoice;
 use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;
@@ -163,5 +165,80 @@ class PatientLivewireTest extends TestCase
         Livewire::actingAs($userB)
             ->test(Patient360::class, ['patient' => $patient])
             ->assertStatus(403);
+    }
+
+    public function test_patient_360_displays_related_appointments_in_tab(): void
+    {
+        $tenant = Tenant::factory()->create();
+        app(TenantContext::class)->set($tenant->id);
+        $patient = Patient::factory()->create();
+
+        Appointment::factory()->create([
+            'tenant_id' => $tenant->id,
+            'patient_id' => $patient->id,
+            'type' => 'TREATMENT',
+            'status' => 'SCHEDULED',
+        ]);
+
+        $user = $this->tenantUser($tenant);
+
+        Livewire::actingAs($user)
+            ->test(Patient360::class, ['patient' => $patient])
+            ->call('setTab', 'appointments')
+            ->assertSet('activeTab', 'appointments')
+            ->assertSee('TREATMENT')
+            ->assertSee('SCHEDULED');
+    }
+
+    public function test_patient_360_displays_related_invoices_in_tab(): void
+    {
+        $tenant = Tenant::factory()->create();
+        app(TenantContext::class)->set($tenant->id);
+        $patient = Patient::factory()->create();
+
+        Invoice::factory()->create([
+            'tenant_id' => $tenant->id,
+            'patient_id' => $patient->id,
+            'invoice_number' => 'K360-INV-TAB001',
+        ]);
+
+        $user = $this->tenantUser($tenant);
+
+        Livewire::actingAs($user)
+            ->test(Patient360::class, ['patient' => $patient])
+            ->call('setTab', 'billing')
+            ->assertSee('K360-INV-TAB001');
+    }
+
+    public function test_patient_360_refreshes_on_patient_updated_event(): void
+    {
+        $tenant = Tenant::factory()->create();
+        app(TenantContext::class)->set($tenant->id);
+        $patient = Patient::factory()->create(['first_name' => 'BeforeRefresh']);
+
+        $user = $this->tenantUser($tenant);
+
+        $component = Livewire::actingAs($user)
+            ->test(Patient360::class, ['patient' => $patient]);
+
+        $patient->update(['first_name' => 'AfterRefresh']);
+
+        $component
+            ->dispatch('patient-updated')
+            ->assertSee('AfterRefresh');
+    }
+
+    public function test_patient_360_shows_empty_state_when_no_related_records(): void
+    {
+        $tenant = Tenant::factory()->create();
+        app(TenantContext::class)->set($tenant->id);
+        $patient = Patient::factory()->create();
+
+        $user = $this->tenantUser($tenant);
+
+        Livewire::actingAs($user)
+            ->test(Patient360::class, ['patient' => $patient])
+            ->call('setTab', 'appointments')
+            ->assertSee(__('klinic360.no_records'));
     }
 }

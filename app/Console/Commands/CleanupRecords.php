@@ -12,6 +12,7 @@ use Illuminate\Support\Carbon;
 class CleanupRecords extends Command
 {
     protected $signature = 'klinic:cleanup';
+
     protected $description = 'Purge expired API tokens and audit logs older than the retention window';
 
     public function handle(): int
@@ -31,6 +32,7 @@ class CleanupRecords extends Command
             ->delete();
 
         $this->info("Deleted {$tokens} expired tokens and {$audits} aged audit logs (>{$retentionDays}d).");
+
         return self::SUCCESS;
     }
 }

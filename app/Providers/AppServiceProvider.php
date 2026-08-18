@@ -2,7 +2,19 @@
 
 namespace App\Providers;
 
+use App\Contracts\AIProviderInterface;
+use App\Contracts\EmailProviderInterface;
+use App\Contracts\PaymentGatewayInterface;
+use App\Contracts\SmsProviderInterface;
+use App\Contracts\StorageProviderInterface;
+use App\Contracts\SubscriptionProviderInterface;
+use App\Contracts\VideoProviderInterface;
+use App\Contracts\WhatsAppProviderInterface;
+use App\Models\IpdAdmission;
+use App\Models\TreatmentBooking;
 use App\Models\User;
+use App\Policies\IpdPolicy;
+use App\Policies\TreatmentPolicy;
 use App\Services\AI\AIContextBuilder;
 use App\Services\AI\AIManager;
 use App\Services\AI\GeminiProvider;
@@ -33,8 +45,8 @@ use App\Services\Queue\QueueService;
 use App\Services\Reports\ReportService;
 use App\Services\Storage\S3StorageProvider;
 use App\Services\Tenancy\TenantContext;
-use App\Services\Video\GoogleMeetProvider;
 use App\Services\Treatments\TreatmentBookingService;
+use App\Services\Video\GoogleMeetProvider;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\ServiceProvider;
 use PragmaRX\Google2FA\Google2FA;
@@ -63,30 +75,30 @@ class AppServiceProvider extends ServiceProvider
         $this->app->singleton(CashfreeSubscriptionProvider::class);
         $this->app->singleton(WebhookProcessor::class);
 
-        $this->app->bind(\App\Contracts\PaymentGatewayInterface::class, CashfreePaymentProvider::class);
-        $this->app->bind(\App\Contracts\SubscriptionProviderInterface::class, CashfreeSubscriptionProvider::class);
+        $this->app->bind(PaymentGatewayInterface::class, CashfreePaymentProvider::class);
+        $this->app->bind(SubscriptionProviderInterface::class, CashfreeSubscriptionProvider::class);
 
         $this->app->singleton(GoogleMeetProvider::class);
-        $this->app->bind(\App\Contracts\VideoProviderInterface::class, GoogleMeetProvider::class);
+        $this->app->bind(VideoProviderInterface::class, GoogleMeetProvider::class);
 
         $this->app->singleton(MetaWhatsAppProvider::class);
         $this->app->singleton(Msg91SmsProvider::class);
         $this->app->singleton(ResendEmailProvider::class);
         $this->app->singleton(NotificationService::class);
 
-        $this->app->bind(\App\Contracts\WhatsAppProviderInterface::class, MetaWhatsAppProvider::class);
-        $this->app->bind(\App\Contracts\SmsProviderInterface::class, Msg91SmsProvider::class);
-        $this->app->bind(\App\Contracts\EmailProviderInterface::class, ResendEmailProvider::class);
+        $this->app->bind(WhatsAppProviderInterface::class, MetaWhatsAppProvider::class);
+        $this->app->bind(SmsProviderInterface::class, Msg91SmsProvider::class);
+        $this->app->bind(EmailProviderInterface::class, ResendEmailProvider::class);
 
         $this->app->singleton(GeminiProvider::class);
         $this->app->singleton(AIContextBuilder::class);
         $this->app->singleton(AIManager::class);
-        $this->app->bind(\App\Contracts\AIProviderInterface::class, GeminiProvider::class);
+        $this->app->bind(AIProviderInterface::class, GeminiProvider::class);
 
         $this->app->singleton(S3StorageProvider::class);
         $this->app->singleton(DocumentService::class);
         $this->app->singleton(PdfService::class);
-        $this->app->bind(\App\Contracts\StorageProviderInterface::class, S3StorageProvider::class);
+        $this->app->bind(StorageProviderInterface::class, S3StorageProvider::class);
 
         $this->app->singleton(ReportService::class);
 
@@ -115,9 +127,9 @@ class AppServiceProvider extends ServiceProvider
 
         // TreatmentBooking's policy is named TreatmentPolicy (not the
         // auto-discovered TreatmentBookingPolicy), so register it explicitly.
-        Gate::policy(\App\Models\TreatmentBooking::class, \App\Policies\TreatmentPolicy::class);
+        Gate::policy(TreatmentBooking::class, TreatmentPolicy::class);
 
         // IpdAdmission's policy is named IpdPolicy (not IpdAdmissionPolicy).
-        Gate::policy(\App\Models\IpdAdmission::class, \App\Policies\IpdPolicy::class);
+        Gate::policy(IpdAdmission::class, IpdPolicy::class);
     }
 }

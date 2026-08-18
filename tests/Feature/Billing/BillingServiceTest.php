@@ -7,7 +7,6 @@ namespace Tests\Feature\Billing;
 use App\Models\Invoice;
 use App\Models\Patient;
 use App\Models\Payment;
-use App\Models\Refund;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\InvoicePolicy;

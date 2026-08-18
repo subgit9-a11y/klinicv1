@@ -2,6 +2,7 @@
 
 namespace Database\Factories;
 
+use App\Models\Patient;
 use App\Models\TreatmentPlan;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Factories\Factory;
@@ -15,7 +16,7 @@ class TreatmentPlanFactory extends Factory
     {
         return [
             'tenant_id' => app(TenantContext::class)->id(),
-            'patient_id' => \App\Models\Patient::factory(),
+            'patient_id' => Patient::factory(),
             'consultation_id' => null,
             'name' => fake()->words(3, true),
             'description' => fake()->optional()->sentence(),

@@ -4,18 +4,15 @@ declare(strict_types=1);
 
 namespace Tests\Feature\IPD;
 
+use App\Models\Invoice;
+use App\Models\InvoiceItem;
 use App\Models\IpdAdmission;
 use App\Models\IpdBed;
 use App\Models\IpdDischargeSummary;
-use App\Models\IpdRoom;
-use App\Models\IpdWard;
-use App\Models\Invoice;
-use App\Models\InvoiceItem;
 use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Policies\IpdPolicy;
-use App\Services\Auth\Permissions;
 use App\Services\IPD\BedNotAvailableException;
 use App\Services\IPD\IpdService;
 use App\Services\Tenancy\TenantContext;

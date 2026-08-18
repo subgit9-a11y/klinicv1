@@ -5,13 +5,9 @@ declare(strict_types=1);
 namespace App\Services\Patients;
 
 use App\Models\Patient;
-use App\Models\PatientConsent;
-use App\Models\PatientIdentifier;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Collection;
-use Illuminate\Database\QueryException;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Fluent;
 
 class PatientService
 {
@@ -25,8 +21,8 @@ class PatientService
      * the active tenant, and detects duplicate phone numbers within the
      * tenant (the (tenant_id, phone) unique constraint enforces this).
      *
-     * @param array<string, mixed> $attributes
-     * @param array{identifiers?: array<int, array{type:string,value:string,is_primary?:bool}>, consents?: array<int, array{consent_type:string,granted?:bool,description?:string,captured_by?:int}>} $related
+     * @param  array<string, mixed>  $attributes
+     * @param  array{identifiers?: array<int, array{type:string,value:string,is_primary?:bool}>, consents?: array<int, array{consent_type:string,granted?:bool,description?:string,captured_by?:int}>}  $related
      */
     public function register(array $attributes, array $related = []): Patient
     {
@@ -104,7 +100,7 @@ class PatientService
      * Update a patient's demographic/clinical attributes. The K360 UID and
      * tenant_id are never mutated.
      *
-     * @param array<string, mixed> $attributes
+     * @param  array<string, mixed>  $attributes
      */
     public function update(Patient $patient, array $attributes): Patient
     {

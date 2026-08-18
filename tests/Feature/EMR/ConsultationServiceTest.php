@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Tests\Feature\EMR;
 
+use App\Models\Appointment;
 use App\Models\Consultation;
 use App\Models\Patient;
 use App\Models\Tenant;
 use App\Models\User;
 use App\Services\EMR\ConsultationService;
 use App\Services\Tenancy\TenantContext;
+use Illuminate\Database\Eloquent\ModelNotFoundException;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class ConsultationServiceTest extends TestCase
@@ -56,7 +59,7 @@ class ConsultationServiceTest extends TestCase
         // Switch back to the first tenant and try to start a consultation.
         app(TenantContext::class)->set($tenant->id);
 
-        $this->expectException(\Illuminate\Database\Eloquent\ModelNotFoundException::class);
+        $this->expectException(ModelNotFoundException::class);
         app(ConsultationService::class)->start(['patient_id' => $patient->id], $doctor);
     }
 
@@ -159,7 +162,7 @@ class ConsultationServiceTest extends TestCase
         [$tenant, $owner] = $this->seedTenant();
         $patient = Patient::factory()->create(['tenant_id' => $tenant->id]);
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         app(ConsultationService::class)->addNote($patient->id, 'x', $owner, 'INVALID');
     }
 
@@ -170,7 +173,7 @@ class ConsultationServiceTest extends TestCase
         $service = app(ConsultationService::class);
         $consultation = $service->start(['patient_id' => $patient->id], $doctor);
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         $service->complete($consultation, $doctor);
     }
 
@@ -197,7 +200,7 @@ class ConsultationServiceTest extends TestCase
             'patient_id' => $patient->id, 'chief_complaint' => 'Headache',
         ]);
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         $service->complete($consultation, $doctor);
     }
 
@@ -226,7 +229,7 @@ class ConsultationServiceTest extends TestCase
             'patient_id' => $patient->id, 'status' => 'DRAFT',
         ]);
 
-        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        $this->expectException(ValidationException::class);
         app(ConsultationService::class)->amend($consultation, $doctor, 'x');
     }
 
@@ -314,7 +317,7 @@ class ConsultationServiceTest extends TestCase
     {
         [$tenant, $owner, $doctor] = $this->seedTenant();
         $patient = Patient::factory()->create(['tenant_id' => $tenant->id]);
-        $appointment = \App\Models\Appointment::factory()->create([
+        $appointment = Appointment::factory()->create([
             'tenant_id' => $tenant->id, 'patient_id' => $patient->id, 'user_id' => $doctor->id,
             'status' => 'IN_CONSULTATION',
         ]);
