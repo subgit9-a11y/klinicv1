@@ -205,6 +205,70 @@ class BillingServiceTest extends TestCase
         ]);
     }
 
+    public function test_record_payment_is_idempotent_on_gateway_payment_id(): void
+    {
+        // A gateway payment (identified by gateway_payment_id) must be
+        // recorded at most once — duplicate webhook delivery or a retry must
+        // return the existing payment, not create a second row (review #2/#10).
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $invoice = Invoice::factory()->create([
+            'status' => 'ISSUED',
+            'total_cents' => 100000,
+            'amount_due_cents' => 100000,
+        ]);
+
+        $svc = app(BillingService::class);
+        $first = $svc->recordPayment($invoice, [
+            'method' => 'CASHFREE',
+            'gateway' => 'CASHFREE',
+            'gateway_payment_id' => 'cf-pay-9901',
+            'amount_cents' => 100000,
+        ]);
+
+        // Duplicate delivery of the same gateway payment.
+        $second = $svc->recordPayment($invoice, [
+            'method' => 'CASHFREE',
+            'gateway' => 'CASHFREE',
+            'gateway_payment_id' => 'cf-pay-9901',
+            'amount_cents' => 100000,
+        ]);
+
+        $this->assertSame($first->id, $second->id, 'Duplicate gateway payment must not be re-recorded');
+        $this->assertSame(1, \App\Models\Payment::where('gateway_payment_id', 'cf-pay-9901')->count());
+        $invoice->refresh();
+        $this->assertSame('PAID', $invoice->status);
+        $this->assertSame(100000, $invoice->amount_paid_cents);
+    }
+
+    public function test_record_payment_allows_distinct_gateway_payments(): void
+    {
+        // Two genuinely distinct gateway payments (different gateway_payment_id)
+        // are both recorded — partial payments against the same invoice.
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $invoice = Invoice::factory()->create([
+            'status' => 'ISSUED',
+            'total_cents' => 100000,
+            'amount_due_cents' => 100000,
+        ]);
+
+        $svc = app(BillingService::class);
+        $svc->recordPayment($invoice, [
+            'method' => 'CASHFREE', 'gateway' => 'CASHFREE',
+            'gateway_payment_id' => 'cf-pay-A', 'amount_cents' => 60000,
+        ]);
+        $svc->recordPayment($invoice, [
+            'method' => 'CASHFREE', 'gateway' => 'CASHFREE',
+            'gateway_payment_id' => 'cf-pay-B', 'amount_cents' => 40000,
+        ]);
+
+        $this->assertSame(2, \App\Models\Payment::where('invoice_id', $invoice->id)->count());
+        $invoice->refresh();
+        $this->assertSame('PAID', $invoice->status);
+        $this->assertSame(100000, $invoice->amount_paid_cents);
+    }
+
     public function test_refund_full_amount_marks_invoice_refunded(): void
     {
         $tenant = Tenant::factory()->create();

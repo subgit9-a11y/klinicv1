@@ -60,7 +60,7 @@ return new class extends Migration
             $t->enum('method', ['CASH', 'UPI', 'CARD', 'BANK_TRANSFER', 'CHEQUE', 'OTHER', 'CASHFREE'])->default('CASH');
             $t->unsignedInteger('amount_cents')->default(0);
             $t->string('currency', 8)->default('INR');
-            $t->string('status', 24)->default('COMPLETED')->index()->comment('PENDING, COMPLETED, FAILED, REFUNDED');
+            $t->string('status', 24)->default('SUCCESS')->index()->comment('PENDING, SUCCESS, FAILED, REFUNDED, PARTIALLY_REFUNDED');
             $t->string('cheque_number')->nullable();
             $t->string('bank_name')->nullable();
             $t->text('notes')->nullable();
@@ -69,6 +69,10 @@ return new class extends Migration
             $t->timestamp('paid_at')->nullable();
             $t->timestamps();
             $t->index(['tenant_id', 'invoice_id']);
+            // A gateway payment must be recorded at most once — hard backstop
+            // for the service-level idempotency dedup. NULL gateway_payment_id
+            // (manual payments) is exempt on both SQLite and MySQL.
+            $t->unique(['gateway', 'gateway_payment_id'], 'payments_gateway_payment_unique');
         });
 
         Schema::create('payment_orders', function (Blueprint $t) {

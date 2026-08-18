@@ -18,12 +18,16 @@ use Illuminate\Support\Facades\Log;
  * Processes incoming payment webhooks with idempotency.
  *
  * Idempotency is enforced via the unique `event_id` column on
- * payment_webhooks. If an event has already been processed, it is
- * skipped. Each webhook is stored (for audit) before processing.
+ * payment_webhooks. The idempotency key is a composite of
+ * (gateway_order_id :: gateway_payment_id :: event_type) so that the
+ * distinct events a single order can carry — a failed attempt, a retried
+ * success, an order-level status — are each processed independently,
+ * while duplicate delivery of the same event is skipped. Each webhook is
+ * stored (for audit) before processing.
  *
  * Flow:
  *  1. Store the raw payload in payment_webhooks.
- *  2. If event_id already exists, skip (idempotent).
+ *  2. If event_id already exists & processed, skip (idempotent).
  *  3. Verify the payment server-side (never trust the webhook alone).
  *  4. Record/update the payment and invoice status.
  *  5. Mark the webhook as processed.
@@ -45,7 +49,6 @@ class WebhookProcessor
      */
     public function process(array $payload, string $signature): array
     {
-        $eventId = $payload['data']['order']['order_id'] ?? $payload['order_id'] ?? null;
         $eventType = $payload['type'] ?? $payload['event'] ?? 'PAYMENT_STATUS';
         $gatewayOrderId = $payload['data']['order']['order_id']
             ?? $payload['data']['payment']['order_id']
@@ -56,9 +59,20 @@ class WebhookProcessor
             ?? $payload['payment_id']
             ?? null;
 
-        if ($eventId === null) {
+        if ($gatewayOrderId === null) {
             return ['processed' => false, 'event_id' => null, 'message' => 'Missing event/order ID'];
         }
+
+        // Idempotency key: a single Cashfree order can carry multiple distinct
+        // payment events — e.g. a failed attempt, then a retried success. Each
+        // attempt gets its own cf_payment_id. Keying solely on order_id would
+        // mark the order "done" after the first event and silently skip the
+        // success. Distinguish events by (order :: payment :: event-type):
+        //   - failed attempt (PAY1) → "ORD::PAY1::PAYMENT_FAILED"
+        //   - success attempt (PAY2) → "ORD::PAY2::PAYMENT_SUCCESS"
+        //   - order-level event (no payment) → "ORD::order::PAYMENT_STATUS"
+        // Duplicate delivery of the SAME event keeps the same key → skipped.
+        $eventId = $gatewayOrderId.'::'.($gatewayPaymentId ?? 'order').'::'.$eventType;
 
         // Idempotency check: if this event was already processed, skip.
         $existing = PaymentWebhook::where('event_id', $eventId)->first();

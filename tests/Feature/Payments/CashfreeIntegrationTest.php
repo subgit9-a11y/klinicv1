@@ -152,13 +152,16 @@ class CashfreeIntegrationTest extends TestCase
         $tenant = Tenant::factory()->create();
         $this->setTenant($tenant);
 
-        // Pre-create an already-processed webhook.
+        // Pre-create an already-processed webhook with the SAME composite
+        // idempotency key the processor will compute for this payload.
+        // Key = "{order}::{payment_id ?? 'order'}::{event_type}".
+        $payload = ['type' => 'PAYMENT_SUCCESS_WEBHOOK', 'data' => ['order' => ['order_id' => 'cf-001']]];
+        $compositeKey = 'cf-001::order::PAYMENT_SUCCESS_WEBHOOK';
+
         PaymentWebhook::factory()->create([
-            'event_id' => 'cf-001',
+            'event_id' => $compositeKey,
             'processed' => true,
         ]);
-
-        $payload = ['type' => 'PAYMENT_SUCCESS_WEBHOOK', 'data' => ['order' => ['order_id' => 'cf-001']]];
 
         // WebhookProcessor will verify with the gateway (HTTP mocked to fail
         // is fine — duplicate detection happens first).
@@ -166,6 +169,40 @@ class CashfreeIntegrationTest extends TestCase
 
         $this->assertFalse($result['processed']);
         $this->assertSame('Duplicate event already processed', $result['message']);
+    }
+
+    public function test_webhook_processor_processes_failed_then_success_on_same_order(): void
+    {
+        // Regression for review item #2: a single Cashfree order can carry
+        // multiple distinct payment events (a failed attempt, then a retried
+        // success). Keying on order_id alone would skip the success after the
+        // first event. The composite key (order::payment::type) must let both
+        // through.
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+
+        // Failed attempt — gateway unconfigured, so verification returns
+        // not-verified and the webhook is stored + marked processed without
+        // recording a payment.
+        $failedPayload = [
+            'type' => 'PAYMENT_FAILED_WEBHOOK',
+            'data' => ['order' => ['order_id' => 'ORD-X'], 'payment' => ['cf_payment_id' => 'PAY-1']],
+        ];
+        $r1 = app(WebhookProcessor::class)->process($failedPayload, 'invalid-signature');
+        $this->assertFalse($r1['processed']); // not verified (gateway down) → no payment recorded
+
+        // Success attempt on the SAME order but a DIFFERENT payment id.
+        $successPayload = [
+            'type' => 'PAYMENT_SUCCESS_WEBHOOK',
+            'data' => ['order' => ['order_id' => 'ORD-X'], 'payment' => ['cf_payment_id' => 'PAY-2']],
+        ];
+        $r2 = app(WebhookProcessor::class)->process($successPayload, 'invalid-signature');
+
+        // The success event must NOT be skipped as a duplicate of the failed
+        // event — the two have distinct composite keys.
+        $this->assertNotSame('Duplicate event already processed', $r2['message']);
+        $this->assertSame('ORD-X::PAY-1::PAYMENT_FAILED_WEBHOOK', $r1['event_id']);
+        $this->assertSame('ORD-X::PAY-2::PAYMENT_SUCCESS_WEBHOOK', $r2['event_id']);
     }
 
     public function test_webhook_processor_stores_unverified_webhook(): void
@@ -181,9 +218,10 @@ class CashfreeIntegrationTest extends TestCase
         $this->assertFalse($result['processed']);
         $this->assertSame('Signature verification failed', $result['message']);
 
-        // Webhook should be stored for audit.
+        // Webhook should be stored for audit (look it up by gateway_order_id
+        // rather than the composite event_id, which is an internal detail).
         $this->assertDatabaseHas('payment_webhooks', [
-            'event_id' => 'evt-002',
+            'gateway_order_id' => 'evt-002',
             'processed' => false,
         ]);
     }
@@ -224,7 +262,7 @@ class CashfreeIntegrationTest extends TestCase
         $response->assertJsonPath('message', 'Signature verification failed');
 
         $this->assertDatabaseHas('payment_webhooks', [
-            'event_id' => 'evt-route-001',
+            'gateway_order_id' => 'evt-route-001',
             'processed' => false,
         ]);
     }

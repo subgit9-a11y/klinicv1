@@ -75,6 +75,43 @@ class PatientServiceTest extends TestCase
         $this->assertSame('K360-P-0000000001', $patient->k360_uid);
     }
 
+    public function test_register_retries_on_uid_collision(): void
+    {
+        // If two concurrent registrations both drew the same candidate UID,
+        // the second Patient::save() hits the k360_uid unique constraint.
+        // register() must catch the violation, regenerate, and succeed rather
+        // than surfacing the race to the caller (review #30).
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+
+        // Seed a patient that occupies the first UID the stub will emit.
+        \App\Models\Patient::factory()->create([
+            'tenant_id' => $tenant->id,
+            'k360_uid' => 'K360-P-COLLIDE00',
+        ]);
+
+        // Stub PatientUidService to first return the colliding UID, then a
+        // fresh one — simulating a lost race followed by a retry.
+        $stub = new class extends \App\Services\Patients\PatientUidService {
+            public int $calls = 0;
+            public function generate(): string
+            {
+                $this->calls++;
+                return $this->calls === 1 ? 'K360-P-COLLIDE00' : 'K360-P-FRESH0001';
+            }
+        };
+        $this->app->instance(\App\Services\Patients\PatientUidService::class, $stub);
+
+        $patient = app(PatientService::class)->register([
+            'first_name' => 'Riya',
+            'phone' => '9555555555',
+            'gender' => 'FEMALE',
+        ]);
+
+        $this->assertSame('K360-P-FRESH0001', $patient->k360_uid);
+        $this->assertSame(2, $stub->calls, 'register() must regenerate after a unique violation');
+    }
+
     public function test_duplicate_phone_within_tenant_is_blocked(): void
     {
         $tenant = Tenant::factory()->create();

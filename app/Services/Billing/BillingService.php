@@ -127,11 +127,41 @@ class BillingService
             throw new \DomainException('Payment amount must be positive.');
         }
 
-        $payment = DB::transaction(function () use ($invoice, $attributes, $amount) {
+        // Gateway idempotency: a single gateway payment (identified by its
+        // gateway_payment_id) must never be recorded twice — duplicate
+        // webhook delivery or a retry must be a no-op. Manual payments have
+        // no gateway_payment_id and skip this guard.
+        $gatewayPaymentId = $attributes['gateway_payment_id'] ?? null;
+        if ($gatewayPaymentId !== null) {
+            $existing = Payment::where('gateway', $attributes['gateway'] ?? 'MANUAL')
+                ->where('gateway_payment_id', $gatewayPaymentId)
+                ->where('status', 'SUCCESS')
+                ->first();
+            if ($existing !== null) {
+                return $existing;
+            }
+        }
+
+        $payment = DB::transaction(function () use ($invoice, $attributes, $amount, $gatewayPaymentId) {
             // Lock the invoice row so two concurrent payments cannot both
             // read the same balance and create overpayments. Reload inside
             // the transaction to read the authoritative amount_due_cents.
             $invoice = Invoice::lockForUpdate()->find($invoice->id);
+
+            // Re-check inside the transaction: a concurrent request may have
+            // recorded this same gateway payment between the outer check and
+            // the lock acquisition. The payments(gateway, gateway_payment_id)
+            // unique constraint is the hard backstop; this avoids throwing.
+            if ($gatewayPaymentId !== null) {
+                $race = Payment::where('gateway', $attributes['gateway'] ?? 'MANUAL')
+                    ->where('gateway_payment_id', $gatewayPaymentId)
+                    ->where('status', 'SUCCESS')
+                    ->lockForUpdate()
+                    ->first();
+                if ($race !== null) {
+                    return $race;
+                }
+            }
 
             $currentDue = (int) $invoice->amount_due_cents;
             if ($amount > $currentDue) {

@@ -29,10 +29,35 @@ class PatientService
         $this->guardTenantContext();
 
         return DB::transaction(function () use ($attributes, $related) {
-            $attributes['k360_uid'] = $attributes['k360_uid'] ?? $this->uidService->generate();
+            // The UID is generated up front by PatientUidService (random +
+            // existence check), but under true concurrency two requests can
+            // both observe the same free UID and the second insert will hit
+            // the patients.k360_uid unique constraint. Retry with a fresh UID
+            // so the caller never sees the race (the constraint is the
+            // arbiter; the existence check is only an optimization).
+            $attempts = 0;
+            while (true) {
+                $attributes['k360_uid'] = $attributes['k360_uid'] ?? $this->uidService->generate();
 
-            $patient = new Patient($attributes);
-            $patient->save();
+                $patient = new Patient($attributes);
+                try {
+                    $patient->save();
+                } catch (\Illuminate\Database\QueryException $e) {
+                    $isUniqueViolation = $e->getCode() === '23000'
+                        || str_contains((string) $e->getMessage(), 'k360_uid')
+                        || str_contains((string) $e->getMessage(), 'UNIQUE constraint');
+                    if ($isUniqueViolation && $attempts < 5) {
+                        $attempts++;
+                        // Force a fresh UID on the next iteration (the
+                        // caller-supplied k360_uid, if any, is honored only
+                        // on the first attempt).
+                        unset($attributes['k360_uid']);
+                        continue;
+                    }
+                    throw $e;
+                }
+                break;
+            }
 
             foreach ($related['identifiers'] ?? [] as $identifier) {
                 $patient->identifiers()->create([
