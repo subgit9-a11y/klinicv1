@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace App\Services\Billing;
 
+use App\Contracts\PaymentGatewayInterface;
 use App\Events\PaymentRecorded;
 use App\Models\Invoice;
 use App\Models\InvoiceItem;
@@ -228,7 +229,9 @@ class BillingService
 
         return DB::transaction(function () use ($payment, $attributes) {
             // Lock the payment row so concurrent refunds cannot both read the
-            // same remaining balance and over-refund.
+            // same remaining balance and over-refund. The lock also serialises
+            // the gateway call below, so a payment is never refunded twice at
+            // the gateway.
             $payment = Payment::lockForUpdate()->find($payment->id);
 
             $alreadyRefunded = $payment->refunds()->where('status', 'SUCCESS')->sum('amount_cents');
@@ -238,11 +241,37 @@ class BillingService
                 throw new \DomainException('Refund amount exceeds remaining payment balance.');
             }
 
+            // Gateway payments must actually be refunded at the gateway —
+            // a local record alone would not move the money. Fail closed:
+            // if the gateway refund fails, NO local refund is recorded.
+            // Manual payments (CASH/UPI/…, no gateway reference) stay
+            // local-only — the clinic hands the money back itself.
+            $gatewayRefundId = $attributes['gateway_refund_id'] ?? null;
+            if ($payment->gateway !== null && $payment->gateway_payment_id !== null && $gatewayRefundId === null) {
+                $gateway = app(PaymentGatewayInterface::class);
+
+                if (! $gateway->isConfigured()) {
+                    throw new \DomainException('Cannot refund a gateway payment while the payment gateway is not configured.');
+                }
+
+                $result = $gateway->refund(
+                    $payment->gateway_payment_id,
+                    (int) $attributes['amount_cents'],
+                    $attributes['reason'] ?? null,
+                );
+
+                if (! ($result['success'] ?? false)) {
+                    throw new \DomainException('Gateway refund failed: '.($result['message'] ?? 'unknown error'));
+                }
+
+                $gatewayRefundId = $result['refund_id'] ?? null;
+            }
+
             $refund = Refund::create([
                 'payment_id' => $payment->id,
                 'invoice_id' => $payment->invoice_id,
                 'refund_number' => $this->generateRefundNumber(),
-                'gateway_refund_id' => $attributes['gateway_refund_id'] ?? null,
+                'gateway_refund_id' => $gatewayRefundId,
                 'amount_cents' => $attributes['amount_cents'],
                 'currency' => $payment->currency,
                 'status' => 'SUCCESS',

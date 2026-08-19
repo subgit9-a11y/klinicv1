@@ -55,11 +55,15 @@ class CashRegisterController extends Controller
         ], 201);
     }
 
-    public function close(CashRegister $cashRegister): Response
+    public function close(Request $request, CashRegister $cashRegister): Response
     {
         $this->authorize('update', $cashRegister);
 
-        $register = $this->service->close($cashRegister);
+        $validated = $request->validate([
+            'actual_balance_cents' => ['nullable', 'integer', 'min:0'],
+        ]);
+
+        $register = $this->service->close($cashRegister, $validated['actual_balance_cents'] ?? null);
 
         return response([
             'message' => 'Cash register closed.',

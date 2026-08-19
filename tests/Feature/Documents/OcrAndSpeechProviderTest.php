@@ -16,40 +16,9 @@ use App\Services\Documents\OcrService;
 use App\Services\Documents\SpeechService;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Tests\Support\Fakes\FakeOcrProvider;
+use Tests\Support\Fakes\FakeSpeechProvider;
 use Tests\TestCase;
-
-/**
- * Shared fake providers so tests can exercise the happy path without real
- * HTTP/external calls. They report isConfigured() === true and return canned
- * text, simulating a configured integration.
- */
-class FakeOcrProvider implements OCRProviderInterface
-{
-    public bool $called = false;
-
-    public function isConfigured(): bool { return true; }
-
-    public function name(): string { return 'FAKE_OCR'; }
-
-    public function extract(string $disk, string $path): array
-    {
-        $this->called = true;
-
-        return ['success' => true, 'text' => 'Haemoglobin: 14.2 g/dL', 'message' => 'ok'];
-    }
-}
-
-class FakeSpeechProvider implements SpeechProviderInterface
-{
-    public function isConfigured(): bool { return true; }
-
-    public function name(): string { return 'FAKE_SPEECH'; }
-
-    public function transcribe(string $disk, string $path): array
-    {
-        return ['success' => true, 'text' => 'Patient reports joint pain for three days.', 'message' => 'ok'];
-    }
-}
 
 class OcrAndSpeechProviderTest extends TestCase
 {

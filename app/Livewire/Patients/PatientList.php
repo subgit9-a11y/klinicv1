@@ -6,6 +6,7 @@ namespace App\Livewire\Patients;
 
 use App\Models\Patient;
 use App\Services\Patients\PatientService;
+use App\Support\Sql;
 use Illuminate\Database\QueryException;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -107,7 +108,7 @@ class PatientList extends Component
                 $q->where(function ($sub) use ($term) {
                     $sub->where('k360_uid', 'like', $term.'%')
                         ->orWhere('phone', 'like', '%'.$term.'%')
-                        ->orWhereRaw('lower(first_name || " " || last_name) like ?', ['%'.strtolower($term).'%'])
+                        ->orWhereRaw('lower('.Sql::personNameConcat().') like ?', ['%'.strtolower($term).'%'])
                         ->orWhere('abha_id', 'like', $term.'%');
                 });
             })

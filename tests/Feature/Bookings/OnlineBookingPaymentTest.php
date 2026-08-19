@@ -229,6 +229,236 @@ class OnlineBookingPaymentTest extends TestCase
         ]);
     }
 
+    // --- Fail-closed (production) behaviour ---------------------------------
+
+    public function test_fail_closed_rejects_booking_when_gateway_unconfigured(): void
+    {
+        config([
+            'services.cashfree.app_id' => null,
+            'services.cashfree.secret_key' => null,
+            'klinic.public_booking.fail_closed' => true,
+        ]);
+
+        try {
+            app(OnlineBookingService::class)->book($this->tenant, [
+                'first_name' => 'Public',
+                'last_name' => 'Booker',
+                'phone' => '9111111111',
+                'user_id' => $this->doctor->id,
+                'appointment_date' => now()->addDay()->toDateString(),
+                'start_time' => '09:00',
+            ]);
+            $this->fail('Expected RuntimeException for fail-closed booking');
+        } catch (\RuntimeException $e) {
+            $this->assertStringContainsString('unavailable', $e->getMessage());
+        }
+
+        // Nothing was created — fail closed happens BEFORE any record.
+        $this->assertDatabaseMissing('appointments', ['user_id' => $this->doctor->id]);
+        $this->assertDatabaseMissing('invoices', ['tenant_id' => $this->tenant->id]);
+    }
+
+    public function test_fail_closed_store_endpoint_returns_503(): void
+    {
+        config([
+            'services.cashfree.app_id' => null,
+            'services.cashfree.secret_key' => null,
+            'klinic.public_booking.fail_closed' => true,
+            'klinic.public_booking.tenant_id' => $this->tenant->id,
+        ]);
+
+        $this->post(route('online-booking.store'), [
+            'first_name' => 'Public',
+            'last_name' => 'Booker',
+            'phone' => '9222222222',
+            'user_id' => $this->doctor->id,
+            'appointment_date' => now()->addDay()->toDateString(),
+            'start_time' => '09:30',
+        ])->assertStatus(503);
+
+        $this->assertDatabaseMissing('appointments', ['user_id' => $this->doctor->id]);
+    }
+
+    public function test_fail_closed_shows_unavailable_notice_and_slots_503(): void
+    {
+        config([
+            'services.cashfree.app_id' => null,
+            'services.cashfree.secret_key' => null,
+            'klinic.public_booking.fail_closed' => true,
+            'klinic.public_booking.tenant_id' => $this->tenant->id,
+        ]);
+
+        $this->get(route('online-booking.show'))
+            ->assertOk()
+            ->assertSee('temporarily unavailable');
+
+        $this->getJson('/book/slots?user_id='.$this->doctor->id.'&date='.now()->addDay()->toDateString())
+            ->assertStatus(503);
+    }
+
+    // --- Amount consistency & order lifecycle --------------------------------
+
+    public function test_webhook_rejects_amount_mismatch(): void
+    {
+        $this->swapGatewayWithFake('K360-ORD-MISMATCH-001');
+
+        $result = app(OnlineBookingService::class)->book($this->tenant, [
+            'first_name' => 'Public',
+            'last_name' => 'Booker',
+            'phone' => '9000000001',
+            'user_id' => $this->doctor->id,
+            'appointment_date' => now()->addDay()->toDateString(),
+            'start_time' => '17:00',
+        ]);
+        $appointment = $result['appointment'];
+        $invoice = $result['invoice'];
+
+        // Gateway says only 4900 was paid for a 49900 order — must be rejected.
+        $this->swapCashfreeProvider('K360-ORD-MISMATCH-001', 4900);
+
+        $payload = [
+            'type' => 'PAYMENT_SUCCESS_WEBHOOK',
+            'data' => [
+                'order' => ['order_id' => 'K360-ORD-MISMATCH-001'],
+                'payment' => ['cf_payment_id' => 'cf-pay-mismatch'],
+            ],
+        ];
+
+        $outcome = app(WebhookProcessor::class)->process($payload, 'valid-sig');
+
+        $this->assertSame(422, $outcome['status']);
+        $this->assertFalse($outcome['processed']);
+        $this->assertSame('SCHEDULED', $appointment->fresh()->status);
+        $this->assertSame('CREATED', \App\Models\PaymentOrder::where('gateway_order_id', 'K360-ORD-MISMATCH-001')->value('status'));
+        $this->assertDatabaseMissing('payments', ['invoice_id' => $invoice->id]);
+        $this->assertDatabaseHas('audit_logs', ['action' => 'payment.amount_mismatch']);
+    }
+
+    public function test_webhook_marks_order_paid_on_success(): void
+    {
+        $this->swapGatewayWithFake('K360-ORD-PAID-001');
+
+        $result = app(OnlineBookingService::class)->book($this->tenant, [
+            'first_name' => 'Public',
+            'last_name' => 'Booker',
+            'phone' => '9000000002',
+            'user_id' => $this->doctor->id,
+            'appointment_date' => now()->addDay()->toDateString(),
+            'start_time' => '17:30',
+        ]);
+        $invoice = $result['invoice'];
+
+        $this->swapCashfreeProvider('K360-ORD-PAID-001', (int) $invoice->total_cents);
+
+        $outcome = app(WebhookProcessor::class)->process([
+            'type' => 'PAYMENT_SUCCESS_WEBHOOK',
+            'data' => [
+                'order' => ['order_id' => 'K360-ORD-PAID-001'],
+                'payment' => ['cf_payment_id' => 'cf-pay-paid-001'],
+            ],
+        ], 'valid-sig');
+
+        $this->assertTrue($outcome['processed']);
+        $this->assertSame(200, $outcome['status']);
+        $this->assertSame('PAID', \App\Models\PaymentOrder::where('gateway_order_id', 'K360-ORD-PAID-001')->value('status'));
+    }
+
+    public function test_webhook_unknown_order_returns_404_and_stays_unprocessed(): void
+    {
+        $this->swapCashfreeProvider('K360-ORD-GHOST', 49900);
+
+        $outcome = app(WebhookProcessor::class)->process([
+            'type' => 'PAYMENT_SUCCESS_WEBHOOK',
+            'data' => [
+                'order' => ['order_id' => 'K360-ORD-GHOST'],
+                'payment' => ['cf_payment_id' => 'cf-pay-ghost'],
+            ],
+        ], 'valid-sig');
+
+        $this->assertSame(404, $outcome['status']);
+        $this->assertFalse($outcome['processed']);
+        // NOT marked processed — a Cashfree retry (after our booking commits)
+        // must be able to settle it.
+        $this->assertDatabaseHas('payment_webhooks', [
+            'gateway_order_id' => 'K360-ORD-GHOST',
+            'processed' => false,
+        ]);
+    }
+
+    public function test_failed_event_marks_order_failed(): void
+    {
+        $this->swapGatewayWithFake('K360-ORD-FAIL-001');
+
+        app(OnlineBookingService::class)->book($this->tenant, [
+            'first_name' => 'Public',
+            'last_name' => 'Booker',
+            'phone' => '9000000003',
+            'user_id' => $this->doctor->id,
+            'appointment_date' => now()->addDay()->toDateString(),
+            'start_time' => '18:00',
+        ]);
+
+        $this->swapCashfreeProvider('K360-ORD-FAIL-001', null, verified: false);
+
+        $outcome = app(WebhookProcessor::class)->process([
+            'type' => 'PAYMENT_FAILED_WEBHOOK',
+            'data' => [
+                'order' => ['order_id' => 'K360-ORD-FAIL-001'],
+                'payment' => ['cf_payment_id' => 'cf-pay-fail-001'],
+            ],
+        ], 'valid-sig');
+
+        $this->assertSame(422, $outcome['status']);
+        $this->assertSame('FAILED', \App\Models\PaymentOrder::where('gateway_order_id', 'K360-ORD-FAIL-001')->value('status'));
+    }
+
+    // --- PaymentOrder lifecycle state machine --------------------------------
+
+    public function test_payment_order_valid_and_invalid_transitions(): void
+    {
+        $order = \App\Models\PaymentOrder::create([
+            'tenant_id' => $this->tenant->id,
+            'internal_order_id' => 'K360-ORD-LC-001',
+            'gateway' => 'CASHFREE',
+            'gateway_order_id' => 'gw-lc-001',
+            'payable_type' => Invoice::class,
+            'payable_id' => 0,
+            'amount_cents' => 1000,
+            'currency' => 'INR',
+            'status' => 'CREATED',
+        ]);
+
+        $order->markPending();
+        $this->assertSame('PENDING', $order->fresh()->status);
+        $order->markFailed();
+        $order->markPaid(); // a retry succeeded after a failed attempt
+        $this->assertSame('PAID', $order->fresh()->status);
+
+        // PAID is terminal.
+        $this->expectException(\LogicException::class);
+        $order->markFailed();
+    }
+
+    public function test_expired_order_cannot_be_paid(): void
+    {
+        $order = \App\Models\PaymentOrder::create([
+            'tenant_id' => $this->tenant->id,
+            'internal_order_id' => 'K360-ORD-LC-002',
+            'gateway' => 'CASHFREE',
+            'gateway_order_id' => 'gw-lc-002',
+            'payable_type' => Invoice::class,
+            'payable_id' => 0,
+            'amount_cents' => 1000,
+            'currency' => 'INR',
+            'status' => 'CREATED',
+        ]);
+
+        $order->expire();
+
+        $this->expectException(\LogicException::class);
+        $order->markPaid();
+    }
+
     /**
      * Swap the bound CashfreePaymentProvider concrete (used by WebhookProcessor
      * for signature verification + server-side verify()) with a fake that

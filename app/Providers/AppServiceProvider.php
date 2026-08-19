@@ -208,5 +208,11 @@ class AppServiceProvider extends ServiceProvider
             \App\Events\PaymentRecorded::class,
             \App\Listeners\SendPaymentReceiptNotification::class
         );
+
+        // Async document pipeline: OCR extraction runs as a queued job.
+        Event::listen(
+            \App\Events\DocumentUploaded::class,
+            \App\Listeners\DispatchDocumentOcr::class
+        );
     }
 }

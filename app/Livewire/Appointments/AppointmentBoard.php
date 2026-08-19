@@ -9,6 +9,7 @@ use App\Models\Patient;
 use App\Models\User;
 use App\Services\Appointments\AppointmentService;
 use App\Services\Tenancy\TenantContext;
+use App\Support\Sql;
 use Illuminate\Validation\ValidationException;
 use Livewire\Component;
 use Livewire\WithPagination;
@@ -116,7 +117,7 @@ class AppointmentBoard extends Component
                 $q->whereHas('patient', function ($pq) use ($term) {
                     $pq->where('k360_uid', 'like', $term)
                         ->orWhere('phone', 'like', $term)
-                        ->orWhereRaw('lower(first_name || " " || last_name) like ?', [strtolower($term)]);
+                        ->orWhereRaw('lower('.Sql::personNameConcat().') like ?', [strtolower($term)]);
                 });
             })
             ->with(['patient:id,k360_uid,first_name,last_name,phone', 'doctor:id,name'])
@@ -136,7 +137,7 @@ class AppointmentBoard extends Component
                 ->where(function ($q) {
                     $q->where('k360_uid', 'like', $this->search.'%')
                         ->orWhere('phone', 'like', '%'.$this->search.'%')
-                        ->orWhereRaw('lower(first_name || " " || last_name) like ?', ['%'.strtolower($this->search).'%']);
+                        ->orWhereRaw('lower('.Sql::personNameConcat().') like ?', ['%'.strtolower($this->search).'%']);
                 })
                 ->limit(10)
                 ->get(['id', 'k360_uid', 'first_name', 'last_name', 'phone']);

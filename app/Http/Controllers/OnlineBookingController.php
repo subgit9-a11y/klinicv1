@@ -31,6 +31,7 @@ class OnlineBookingController extends Controller
         return view('online-booking.show', [
             'tenant' => $tenant,
             'doctors' => $doctors,
+            'paymentUnavailable' => $this->bookings->paymentUnavailable(),
         ]);
     }
 
@@ -44,6 +45,11 @@ class OnlineBookingController extends Controller
      */
     public function slots(Request $request)
     {
+        // Fail closed: no slot enumeration when booking itself is unavailable.
+        if ($this->bookings->paymentUnavailable()) {
+            return response()->json(['message' => 'Online booking is temporarily unavailable.'], 503);
+        }
+
         $tenant = $this->resolveTenant();
         app(TenantContext::class)->set($tenant->id);
 
@@ -65,6 +71,12 @@ class OnlineBookingController extends Controller
 
     public function store(Request $request)
     {
+        // Fail closed: production + unconfigured gateway = booking unavailable,
+        // never an unpaid appointment.
+        if ($this->bookings->paymentUnavailable()) {
+            abort(503, 'Online booking is temporarily unavailable. Please call the clinic to book.');
+        }
+
         $tenant = $this->resolveTenant();
 
         $validated = $request->validate([

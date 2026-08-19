@@ -11,6 +11,7 @@ use App\Models\AppointmentStatusHistory;
 use App\Models\AppointmentToken;
 use App\Models\DoctorLeave;
 use App\Models\Patient;
+use App\Models\TokenSequence;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Collection;
@@ -337,19 +338,15 @@ class AppointmentService
     {
         $tenantId = $appointment->tenant_id;
 
-        $tokenNumber = DB::transaction(function () use ($tenantId, $appointment) {
-            // Per-doctor, per-day sequence — concurrent-safe via row lock on the day's tokens.
-            $lastToken = AppointmentToken::where('tenant_id', $tenantId)
-                ->where('user_id', $appointment->user_id)
-                ->where('appointment_date', $appointment->appointment_date)
-                ->lockForUpdate()
-                ->orderByDesc('id')
-                ->first();
-
-            $next = $lastToken ? ((int) $lastToken->token_number) + 1 : 1;
-
-            return str_pad((string) $next, 3, '0', STR_PAD_LEFT);
-        });
+        // Per-doctor per-day counter row — locked FOR UPDATE before the number
+        // is consumed. Unlike locking the day's tokens (which locks nothing
+        // when no token exists yet), the counter row exists from the first
+        // walk-in, so even two simultaneous first-of-day bookings serialize.
+        $tokenNumber = TokenSequence::lockFor(
+            $tenantId,
+            $appointment->user_id,
+            $appointment->appointment_date->toDateString(),
+        )->consume();
 
         return AppointmentToken::create([
             'tenant_id' => $tenantId,

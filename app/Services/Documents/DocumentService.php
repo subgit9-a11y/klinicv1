@@ -51,7 +51,7 @@ class DocumentService
             $file->getMimeType()
         );
 
-        return DB::transaction(function () use ($file, $type, $attachable, $uploadedBy, $metadata, $tenantId, $storedPath) {
+        $document = DB::transaction(function () use ($file, $type, $attachable, $uploadedBy, $metadata, $tenantId, $storedPath) {
             return Document::create([
                 'tenant_id' => $tenantId,
                 'patient_id' => $this->extractPatientId($attachable),
@@ -70,6 +70,11 @@ class DocumentService
                 'uploaded_by' => $uploadedBy ?? auth()->id(),
             ]);
         });
+
+        // After commit: OCR runs via a queued job, never in the request.
+        \App\Events\DocumentUploaded::dispatch($document);
+
+        return $document;
     }
 
     /**

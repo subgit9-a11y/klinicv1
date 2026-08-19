@@ -17,6 +17,8 @@ class CashRegisterResource extends JsonResource
             'status' => $this->status,
             'opening_balance' => $this->opening_balance_cents / 100,
             'closing_balance' => $this->closing_balance_cents / 100,
+            'actual_balance' => $this->actual_balance_cents !== null ? $this->actual_balance_cents / 100 : null,
+            'variance' => $this->variance_cents !== null ? $this->variance_cents / 100 : null,
             'currency' => 'INR',
             'user' => $this->whenLoaded('user', fn () => [
                 'id' => $this->user->id,

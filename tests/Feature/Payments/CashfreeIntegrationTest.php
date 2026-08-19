@@ -250,14 +250,15 @@ class CashfreeIntegrationTest extends TestCase
         $payload = ['type' => 'PAYMENT_SUCCESS_WEBHOOK', 'data' => ['order' => ['order_id' => 'evt-route-001']]];
 
         // Signature is invalid → processor stores the webhook but does not
-        // mark it processed. The endpoint must still respond 200 (to stop
-        // Cashfree from retrying) and the payload must have reached the
-        // processor (a stored payment_webhooks row proves delegation).
+        // mark it processed. The endpoint answers 401 (not a blanket 200) so
+        // operational monitoring can alert on signature failures; a later
+        // delivery carrying a VALID signature still processes, because the
+        // stored row was left unprocessed.
         $response = $this->postJson('/api/v1/webhooks/payments', $payload, [
             'X-Cf-Signature' => 'invalid-signature',
         ]);
 
-        $response->assertStatus(200);
+        $response->assertStatus(401);
         $response->assertJsonPath('processed', false);
         $response->assertJsonPath('message', 'Signature verification failed');
 
@@ -276,7 +277,7 @@ class CashfreeIntegrationTest extends TestCase
             'type' => 'PAYMENT_SUCCESS_WEBHOOK',
         ], ['X-Cf-Signature' => 'sig']);
 
-        $response->assertStatus(200);
+        $response->assertStatus(400);
         $response->assertJsonPath('processed', false);
         $response->assertJsonPath('message', 'Missing event/order ID');
     }

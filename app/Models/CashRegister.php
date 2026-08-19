@@ -15,6 +15,7 @@ class CashRegister extends Model
     protected $fillable = [
         'tenant_id', 'name', 'user_id', 'status',
         'opening_balance_cents', 'closing_balance_cents',
+        'actual_balance_cents', 'variance_cents',
         'opened_at', 'closed_at',
     ];
 

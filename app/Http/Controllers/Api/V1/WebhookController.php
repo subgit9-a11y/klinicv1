@@ -34,7 +34,14 @@ class WebhookController extends Controller
 
         $result = $this->processor->process($payload, $signature);
 
-        // Always 200 to prevent Cashfree from retrying a genuinely processed event.
-        return response()->json($result, 200);
+        // The processor returns a semantic status: 200 for processed/safely
+        // idempotent events, 4xx for deterministic rejections (bad signature,
+        // unknown order, amount mismatch). Non-2xx answers let Cashfree retry
+        // races (unknown order) while operational monitoring can alert on
+        // genuine failures instead of them being masked by a blanket 200.
+        $status = $result['status'] ?? 200;
+        unset($result['status']);
+
+        return response()->json($result, $status);
     }
 }

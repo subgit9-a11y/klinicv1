@@ -6,6 +6,7 @@ namespace App\Services\Patients;
 
 use App\Models\Patient;
 use App\Services\Tenancy\TenantContext;
+use App\Support\Sql;
 use Illuminate\Database\Eloquent\Collection;
 use Illuminate\Support\Facades\DB;
 
@@ -107,7 +108,7 @@ class PatientService
         $query->where(function ($q) use ($term) {
             $q->where('k360_uid', 'like', $term.'%')
                 ->orWhere('phone', 'like', '%'.$term.'%')
-                ->orWhereRaw('lower('.(DB::connection()->getDriverName() === 'sqlite' ? 'first_name || " " || last_name' : 'CONCAT(first_name, " ", COALESCE(last_name, ""))').') like ?', ['%'.strtolower($term).'%'])
+                ->orWhereRaw('lower('.Sql::personNameConcat().') like ?', ['%'.strtolower($term).'%'])
                 ->orWhere('abha_id', 'like', $term.'%');
         });
 

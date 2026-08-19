@@ -91,12 +91,29 @@ return [
     | (webhook + order verification) BEFORE the appointment is confirmed.
     | When the gateway is unconfigured (dev/test), the appointment stays
     | SCHEDULED and no payment is required — the flow degrades gracefully.
+    |
+    | fail_closed: when true, an unconfigured payment gateway makes online
+    | booking UNAVAILABLE instead of issuing unpaid appointments. Defaults
+    | to true in production — production + payment unavailable must never
+    | silently become a free consultation.
     */
     'public_booking' => [
         'tenant_id' => (int) env('KLINIC_PUBLIC_BOOKING_TENANT_ID', 0),
         'consultation_fee_cents' => (int) env('KLINIC_ONLINE_CONSULTATION_FEE_CENTS', 49900),
         'consultation_duration_minutes' => (int) env('KLINIC_ONLINE_CONSULTATION_MINUTES', 30),
         'return_url' => env('KLINIC_BOOKING_RETURN_URL', '/book/done'),
+        'fail_closed' => (bool) env('KLINIC_PUBLIC_BOOKING_FAIL_CLOSED', env('APP_ENV') === 'production'),
+    ],
+
+    /*
+    |--------------------------------------------------------------------------
+    | Payments
+    |--------------------------------------------------------------------------
+    | order_ttl_hours: how long an unpaid Cashfree order stays open before
+    | the reconciliation command expires it.
+    */
+    'payments' => [
+        'order_ttl_hours' => (int) env('KLINIC_PAYMENT_ORDER_TTL_HOURS', 48),
     ],
 
 ];

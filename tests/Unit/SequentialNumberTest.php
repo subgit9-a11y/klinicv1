@@ -46,6 +46,35 @@ class SequentialNumberTest extends TestCase
         $this->assertSame('K360-INV-000008', $number);
     }
 
+    public function test_number_columns_have_database_unique_constraints(): void
+    {
+        // The hard backstop for SequentialNumber: the database itself must
+        // reject duplicate numbers, so application logic is not the only
+        // protection. A duplicate insert must raise a constraint violation.
+        $tenant = Tenant::factory()->create();
+        app(TenantContext::class)->set($tenant->id);
+
+        $columns = [
+            'invoices' => 'invoice_number',
+            'payments' => 'payment_number',
+            'refunds' => 'refund_number',
+        ];
+
+        foreach ($columns as $table => $column) {
+            $this->assertTrue(
+                collect(\Illuminate\Support\Facades\Schema::getIndexes($table))
+                    ->contains(fn ($index) => $index['unique'] && in_array($column, $index['columns'], true)),
+                "Expected a unique index on {$table}.{$column}"
+            );
+        }
+
+        $this->assertTrue(
+            collect(\Illuminate\Support\Facades\Schema::getIndexes('ipd_admissions'))
+                ->contains(fn ($index) => $index['unique'] && in_array('ipd_number', $index['columns'], true)),
+            'Expected a unique index on ipd_admissions.ipd_number'
+        );
+    }
+
     public function test_next_never_returns_a_number_that_already_exists(): void
     {
         Invoice::factory()->create(['invoice_number' => 'K360-INV-000001']);

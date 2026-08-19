@@ -58,6 +58,12 @@ class OnlineBookingService
     {
         app(TenantContext::class)->set($tenant->id);
 
+        // Fail closed BEFORE creating anything: production + unconfigured
+        // gateway must make booking unavailable, never a free appointment.
+        if ($this->paymentUnavailable()) {
+            throw new \RuntimeException('Online booking is temporarily unavailable (payments not configured).');
+        }
+
         // Security: the doctor MUST belong to the booking tenant and be a
         // practitioner role. Otherwise a public caller could book an
         // arbitrary user_id (cross-tenant escalation).
@@ -103,7 +109,8 @@ class OnlineBookingService
         if ($gatewayConfigured) {
             [$invoice, $paymentUrl] = $this->createPaymentFor($appointment, $patient, $tenant);
         } else {
-            // Graceful degrade: no gateway → no payment required (dev/test).
+            // Graceful degrade (dev/test only — fail-closed runs at the top of
+            // book()): no gateway → no payment required, stays SCHEDULED.
             Log::info('Online booking created without payment (gateway unconfigured)', [
                 'appointment_id' => $appointment->id,
             ]);
@@ -115,6 +122,17 @@ class OnlineBookingService
             'payment_url' => $paymentUrl,
             'gateway_configured' => $gatewayConfigured,
         ];
+    }
+
+    /**
+     * True when the payment gateway is unconfigured AND the fail-closed policy
+     * is active. bookingUnavailableReason() renders this as a notice on the
+     * public booking page; book() throws before creating any appointment.
+     */
+    public function paymentUnavailable(): bool
+    {
+        return ! $this->gateway->isConfigured()
+            && (bool) config('klinic.public_booking.fail_closed', false);
     }
 
     /**

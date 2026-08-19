@@ -4,14 +4,9 @@ declare(strict_types=1);
 
 namespace App\Services\Payments;
 
-use App\Models\Invoice;
-use App\Models\Payment;
 use App\Models\PaymentOrder;
 use App\Models\PaymentWebhook;
 use App\Services\Audit\AuditService;
-use App\Services\Billing\BillingService;
-use App\Services\Bookings\OnlineBookingService;
-use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
 
 /**
@@ -28,24 +23,32 @@ use Illuminate\Support\Facades\Log;
  * Flow:
  *  1. Store the raw payload in payment_webhooks.
  *  2. If event_id already exists & processed, skip (idempotent).
- *  3. Verify the payment server-side (never trust the webhook alone).
- *  4. Record/update the payment and invoice status.
+ *  3. Verify the signature, then the payment server-side (never trust the
+ *     webhook alone), including amount consistency vs. the PaymentOrder.
+ *  4. Record/update the payment and invoice status, advance order lifecycle.
  *  5. Mark the webhook as processed.
+ *
+ * Each result carries an HTTP `status` so the controller can answer Cashfree
+ * with a semantically correct code instead of a blanket 200:
+ *   200 — processed, or a redelivery of an already-processed event
+ *   400 — malformed payload (no order id)
+ *   401 — signature verification failed (do not trust, not worth retrying as-is)
+ *   404 — unknown order (Cashfree retries cover the booking/webhook race)
+ *   422 — payment not verified server-side, or amount mismatch
  */
 class WebhookProcessor
 {
     public function __construct(
         private readonly CashfreePaymentProvider $gateway,
-        private readonly BillingService $billing,
+        private readonly PaymentSettlementService $settlement,
         private readonly AuditService $audit,
-        private readonly OnlineBookingService $bookings,
     ) {}
 
     /**
      * Process a Cashfree webhook payload.
      *
      * @param  string  $signature  Raw signature from the webhook header
-     * @return array{processed: bool, event_id: ?string, message: string}
+     * @return array{status: int, processed: bool, event_id: ?string, message: string}
      */
     public function process(array $payload, string $signature): array
     {
@@ -60,7 +63,7 @@ class WebhookProcessor
             ?? null;
 
         if ($gatewayOrderId === null) {
-            return ['processed' => false, 'event_id' => null, 'message' => 'Missing event/order ID'];
+            return ['status' => 400, 'processed' => false, 'event_id' => null, 'message' => 'Missing event/order ID'];
         }
 
         // Idempotency key: a single Cashfree order can carry multiple distinct
@@ -77,7 +80,7 @@ class WebhookProcessor
         // Idempotency check: if this event was already processed, skip.
         $existing = PaymentWebhook::where('event_id', $eventId)->first();
         if ($existing && $existing->processed) {
-            return ['processed' => false, 'event_id' => $eventId, 'message' => 'Duplicate event already processed'];
+            return ['status' => 200, 'processed' => false, 'event_id' => $eventId, 'message' => 'Duplicate event already processed'];
         }
 
         // Store the webhook (audit trail).
@@ -93,24 +96,30 @@ class WebhookProcessor
             ]
         );
 
-        // Verify the signature (if gateway is configured).
+        // Verify the signature (if gateway is configured). An invalid
+        // signature is a hard rejection: not trusted, and redelivery of the
+        // same tampered payload would fail again — 401 is honest here. The
+        // stored row (processed=false) means a later delivery with a VALID
+        // signature still processes.
         if ($this->gateway->isConfigured() && ! $this->gateway->verifyWebhookSignature($payload, $signature)) {
             Log::warning('Cashfree webhook signature verification failed', ['event_id' => $eventId]);
 
-            return ['processed' => false, 'event_id' => $eventId, 'message' => 'Signature verification failed'];
+            return ['status' => 401, 'processed' => false, 'event_id' => $eventId, 'message' => 'Signature verification failed'];
         }
 
         // Server-side verification — never trust the webhook payload.
-        if ($gatewayOrderId === null) {
-            return ['processed' => false, 'event_id' => $eventId, 'message' => 'Missing gateway order ID'];
-        }
-
         $verification = $this->gateway->verify($gatewayOrderId);
 
         if (! $verification['verified']) {
+            // A FAILED payment event advances the order lifecycle; any other
+            // non-verified state (order still open at the gateway) leaves it.
+            $order = PaymentOrder::where('gateway_order_id', $gatewayOrderId)->first();
+            if ($order !== null && str_contains((string) $eventType, 'FAILED') && ! $order->isPaid()) {
+                $order->markFailed();
+            }
             $webhook->update(['processed' => true, 'processed_at' => now()]);
 
-            return ['processed' => false, 'event_id' => $eventId, 'message' => 'Payment not verified: '.($verification['message'] ?? 'unknown')];
+            return ['status' => 422, 'processed' => false, 'event_id' => $eventId, 'message' => 'Payment not verified: '.($verification['message'] ?? 'unknown')];
         }
 
         // Find the invoice via the PaymentOrder.
@@ -118,34 +127,28 @@ class WebhookProcessor
 
         if ($order === null) {
             Log::warning('Cashfree webhook: no matching PaymentOrder', ['gateway_order_id' => $gatewayOrderId]);
-            $webhook->update(['processed' => true, 'processed_at' => now()]);
-
-            return ['processed' => false, 'event_id' => $eventId, 'message' => 'No matching order found'];
+            // Do NOT mark processed: 404 makes Cashfree retry, covering the
+            // race where the webhook arrives before the booking transaction
+            // that creates the order row commits.
+            return ['status' => 404, 'processed' => false, 'event_id' => $eventId, 'message' => 'No matching order found'];
         }
 
-        $invoice = $order->payable;
+        // Settle: amount-consistency check (gateway amount == order ==
+        // invoice) + idempotent payment recording + order → PAID, all in a
+        // transaction. A mismatch is a deterministic rejection — mark the
+        // webhook processed so redelivery is a safe idempotent skip.
+        $result = $this->settlement->settle($order, $verification, $gatewayPaymentId);
 
-        DB::transaction(function () use ($invoice, $verification, $gatewayPaymentId, $webhook) {
-            if ($invoice instanceof Invoice) {
-                $this->billing->recordPayment($invoice, [
-                    'method' => 'CASHFREE',
-                    'gateway' => 'CASHFREE',
-                    'amount_cents' => $verification['amount_cents'] ?? $invoice->amount_due_cents,
-                    'gateway_payment_id' => $verification['gateway_payment_id'] ?? $gatewayPaymentId,
-                    'gateway_order_id' => $verification['gateway_order_id'] ?? null,
-                ]);
-
-                // Promote the linked appointment to CONFIRMED now that payment
-                // is verified server-side. Only applies to online bookings
-                // (invoice→appointment link); other invoices are a no-op.
-                $this->bookings->confirmOnPayment($invoice->fresh());
-            }
-
+        if (! $result['settled']) {
             $webhook->update(['processed' => true, 'processed_at' => now()]);
-        });
+
+            return ['status' => 422, 'processed' => false, 'event_id' => $eventId, 'message' => $result['message']];
+        }
+
+        $webhook->update(['processed' => true, 'processed_at' => now()]);
 
         $this->audit->record('payment.webhook', 'billing', ['after' => ['event_id' => $eventId]]);
 
-        return ['processed' => true, 'event_id' => $eventId, 'message' => 'Webhook processed successfully'];
+        return ['status' => 200, 'processed' => true, 'event_id' => $eventId, 'message' => 'Webhook processed successfully'];
     }
 }

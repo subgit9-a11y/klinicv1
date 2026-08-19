@@ -75,13 +75,24 @@ class CashRegisterService
     }
 
     /**
-     * Close the register, computing the closing balance from the ledger.
+     * Close the register, computing the closing (expected) balance from the
+     * ledger. When the counted cash ($actualBalanceCents) is supplied, the
+     * variance (actual − expected) is recorded for drawer reconciliation.
+     *
+     * The status guard runs under a row lock — a register can never be
+     * closed twice, even on concurrent requests.
      */
-    public function close(CashRegister $register): CashRegister
+    public function close(CashRegister $register, ?int $actualBalanceCents = null): CashRegister
     {
         $this->assertSameTenantModel($register);
 
-        return DB::transaction(function () use ($register) {
+        if ($actualBalanceCents !== null && $actualBalanceCents < 0) {
+            throw ValidationException::withMessages([
+                'actual_balance_cents' => 'The counted balance cannot be negative.',
+            ]);
+        }
+
+        return DB::transaction(function () use ($register, $actualBalanceCents) {
             $locked = CashRegister::lockForUpdate()->find($register->id);
 
             if ($locked->status !== 'OPEN') {
@@ -90,15 +101,49 @@ class CashRegisterService
 
             $credits = (int) $locked->entries()->where('type', 'CREDIT')->sum('amount_cents');
             $debits = (int) $locked->entries()->where('type', 'DEBIT')->sum('amount_cents');
+            $expected = $credits - $debits;
 
             $locked->update([
                 'status' => 'CLOSED',
-                'closing_balance_cents' => $credits - $debits,
+                'closing_balance_cents' => $expected,
+                'actual_balance_cents' => $actualBalanceCents,
+                'variance_cents' => $actualBalanceCents !== null ? $actualBalanceCents - $expected : null,
                 'closed_at' => now(),
             ]);
 
             return $locked->refresh();
         });
+    }
+
+    /**
+     * Post a manual drawer adjustment (correction, petty-cash top-up, bank
+     * deposit skimmed from the drawer, …) on an OPEN register. Adjustments
+     * are ledger entries like any other — they move the expected balance.
+     */
+    public function postAdjustment(CashRegister $register, string $type, int $amountCents, string $reason, ?User $by = null): CashRegisterEntry
+    {
+        $this->assertSameTenantModel($register);
+
+        Validator::validate(['type' => $type, 'amount' => $amountCents, 'reason' => $reason], [
+            'type' => ['required', 'in:CREDIT,DEBIT'],
+            'amount' => ['required', 'integer', 'min:1'],
+            'reason' => ['required', 'string', 'max:255'],
+        ]);
+
+        // Refresh: the caller may hold a stale pre-close instance.
+        if ($register->fresh()->status !== 'OPEN') {
+            throw new \DomainException('Adjustments can only be posted to an OPEN register.');
+        }
+
+        return $this->postEntry(
+            $register,
+            $type,
+            'CASH',
+            $amountCents,
+            'Adjustment: '.$reason,
+            null,
+            $by?->id,
+        );
     }
 
     /**

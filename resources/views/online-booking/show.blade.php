@@ -15,6 +15,11 @@
                 <p class="text-sm text-gray-500 mt-1">{{ $tenant->name ?? 'Klinic 360' }} · Secure & instant</p>
             </div>
 
+            @if($paymentUnavailable ?? false)
+                <div class="mb-6 rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+                    Online booking is temporarily unavailable. Please call the clinic to book your appointment.
+                </div>
+            @else
             @if(session('status'))
                 <div class="mb-6 rounded-md bg-green-50 border border-green-200 px-4 py-3 text-sm text-green-800">{{ session('status') }}</div>
             @endif
@@ -72,6 +77,7 @@
                     <button type="submit" class="w-full bg-brand-600 text-white text-sm font-medium px-4 py-2.5 rounded-md hover:bg-brand-700">Confirm Booking</button>
                 </form>
             </div>
+            @endif
         </div>
     </div>
     <script>
