@@ -18,6 +18,7 @@ use Illuminate\Notifications\Notifiable;
             'two_factor_recovery_codes', 'is_active', 'avatar', 'designation',
         'specialization', 'registration_number', 'medicine_system',
         'consultation_fee_cents', 'followup_fee_cents',
+        'consultation_duration_minutes', 'max_daily_appointments',
 ])]
 #[Hidden(['password', 'remember_token', 'two_factor_secret', 'two_factor_recovery_codes', 'permissions'])]
 class User extends Authenticatable implements MustVerifyEmail
@@ -43,6 +44,8 @@ class User extends Authenticatable implements MustVerifyEmail
             'two_factor_confirmed_at' => 'datetime',
             'two_factor_recovery_codes' => 'encrypted:array',
             'is_active' => 'boolean',
+            'consultation_duration_minutes' => 'integer',
+            'max_daily_appointments' => 'integer',
         ];
     }
 
@@ -54,6 +57,11 @@ class User extends Authenticatable implements MustVerifyEmail
     public function availability()
     {
         return $this->hasMany(DoctorAvailability::class, 'user_id');
+    }
+
+    public function leaves()
+    {
+        return $this->hasMany(DoctorLeave::class, 'user_id');
     }
 
     public function appointmentsAsDoctor()
@@ -111,6 +119,16 @@ class User extends Authenticatable implements MustVerifyEmail
     public function consultationFee(): int
     {
         return $this->consultation_fee_cents ?? 0;
+    }
+
+    /**
+     * This doctor's preferred slot length, falling back to the system
+     * default from config when unset.
+     */
+    public function consultationDurationMinutes(): int
+    {
+        return $this->consultation_duration_minutes
+            ?? (int) config('klinic.public_booking.consultation_duration_minutes', 30);
     }
 
     public function fullName(): string

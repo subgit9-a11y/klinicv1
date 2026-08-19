@@ -180,4 +180,155 @@ class OnlineBookingSlotsTest extends TestCase
         $response->assertSee('slots-container');
         $response->assertSee(route('online-booking.slots'));
     }
+
+    public function test_slots_skip_intra_day_break_window(): void
+    {
+        $date = now()->addDay();
+        $dayCode = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][(int) $date->format('w')];
+
+        DoctorAvailability::factory()->create([
+            'user_id' => $this->doctor->id,
+            'day_of_week' => $dayCode,
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'break_start_time' => '09:30',
+            'break_end_time' => '09:45',
+            'is_active' => true,
+        ]);
+
+        $slots = $this->getJson(route('online-booking.slots', [
+            'user_id' => $this->doctor->id,
+            'date' => $date->toDateString(),
+        ]))->assertOk()->json('data');
+
+        // 15-min grid: 09:00, 09:15 available; 09:30 skipped (break to 09:45);
+        // 09:45 available. No slot should fall inside [09:30, 09:45).
+        $starts = array_column($slots, 'start');
+        $this->assertContains('09:00', $starts);
+        $this->assertContains('09:15', $starts);
+        $this->assertNotContains('09:30', $starts);
+        $this->assertContains('09:45', $starts);
+    }
+
+    public function test_slots_return_empty_on_approved_doctor_leave(): void
+    {
+        $date = now()->addDay();
+        $dayCode = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][(int) $date->format('w')];
+
+        DoctorAvailability::factory()->create([
+            'user_id' => $this->doctor->id,
+            'day_of_week' => $dayCode,
+            'start_time' => '09:00',
+            'end_time' => '17:00',
+            'is_active' => true,
+        ]);
+
+        \App\Models\DoctorLeave::factory()->create([
+            'user_id' => $this->doctor->id,
+            'start_date' => $date->toDateString(),
+            'end_date' => $date->toDateString(),
+            'is_approved' => true,
+        ]);
+
+        $this->assertSame(
+            [],
+            $this->getJson(route('online-booking.slots', [
+                'user_id' => $this->doctor->id,
+                'date' => $date->toDateString(),
+            ]))->assertOk()->json('data')
+        );
+    }
+
+    public function test_slots_still_available_when_leave_is_unapproved(): void
+    {
+        $date = now()->addDay();
+        $dayCode = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][(int) $date->format('w')];
+
+        DoctorAvailability::factory()->create([
+            'user_id' => $this->doctor->id,
+            'day_of_week' => $dayCode,
+            'start_time' => '09:00',
+            'end_time' => '09:30',
+            'is_active' => true,
+        ]);
+
+        \App\Models\DoctorLeave::factory()->create([
+            'user_id' => $this->doctor->id,
+            'start_date' => $date->toDateString(),
+            'end_date' => $date->toDateString(),
+            'is_approved' => false,
+        ]);
+
+        $slots = $this->getJson(route('online-booking.slots', [
+            'user_id' => $this->doctor->id,
+            'date' => $date->toDateString(),
+        ]))->assertOk()->json('data');
+
+        $this->assertNotEmpty($slots);
+    }
+
+    public function test_slots_use_per_doctor_consultation_duration(): void
+    {
+        $this->doctor->update(['consultation_duration_minutes' => 30]);
+
+        $date = now()->addDay();
+        $dayCode = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][(int) $date->format('w')];
+
+        DoctorAvailability::factory()->create([
+            'user_id' => $this->doctor->id,
+            'day_of_week' => $dayCode,
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'is_active' => true,
+        ]);
+
+        $slots = $this->getJson(route('online-booking.slots', [
+            'user_id' => $this->doctor->id,
+            'date' => $date->toDateString(),
+        ]))->assertOk()->json('data');
+
+        // 30-min duration over a 60-min block → exactly 2 slots.
+        $this->assertCount(2, $slots);
+        $this->assertSame('09:00', $slots[0]['start']);
+        $this->assertSame('09:30', $slots[1]['start']);
+    }
+
+    public function test_slots_marked_unavailable_when_doctor_at_daily_capacity(): void
+    {
+        $this->doctor->update(['max_daily_appointments' => 1]);
+
+        $date = now()->addDay();
+        $dayCode = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'][(int) $date->format('w')];
+
+        DoctorAvailability::factory()->create([
+            'user_id' => $this->doctor->id,
+            'day_of_week' => $dayCode,
+            'start_time' => '09:00',
+            'end_time' => '10:00',
+            'is_active' => true,
+        ]);
+
+        // One existing appointment meets the cap.
+        $patient = \App\Models\Patient::factory()->create(['tenant_id' => $this->tenant->id]);
+        \App\Models\Appointment::factory()->create([
+            'tenant_id' => $this->tenant->id,
+            'patient_id' => $patient->id,
+            'user_id' => $this->doctor->id,
+            'appointment_date' => $date->toDateString(),
+            'start_time' => '09:00',
+            'end_time' => '09:15',
+            'status' => 'SCHEDULED',
+        ]);
+
+        $slots = $this->getJson(route('online-booking.slots', [
+            'user_id' => $this->doctor->id,
+            'date' => $date->toDateString(),
+        ]))->assertOk()->json('data');
+
+        // Capacity cap reached → every slot offered as unavailable.
+        $this->assertNotEmpty($slots);
+        foreach ($slots as $slot) {
+            $this->assertFalse($slot['available']);
+        }
+    }
 }

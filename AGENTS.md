@@ -365,7 +365,7 @@ The reviewer's ZIP predates PB1/PB2/PB3/A1-A4/B1. On live verification: #1 webho
 These are substantial feature builds, not targeted fixes, so they are tracked here as future phases rather than crammed into a fix pass:
 - #16 Super Admin completeness — ConfigurationPanel has Plans/Features/AI Models tabs; missing: Tenants CRUD UI, Users management UI, Integrations config UI, Templates management UI, Monitoring/audit/webhook/notification dashboards.
 - #17 Clinic + Super Admin onboarding wizard (create clinic → owner → plan → subscription → settings → staff → services → rooms → beds).
-- #18 Doctor availability breaks/leave/holiday/max-appointments/consultation-duration (currently day-of-week + start/end + is_active only).
+- #18 Doctor availability breaks/leave/holiday/max-appointments/consultation-duration — **slot engine + schema DONE** (see #18 section above); only the admin UI remains.
 - #22 Treatment catalog admin UI (backend `TreatmentCatalogService` exists, no Livewire UI).
 - #23 IPD configuration admin UI (wards/rooms/beds management).
 - #25 Follow-up workflow UI (upcoming/today/completed/missed/rescheduled views; `FollowupService` exists).
@@ -376,3 +376,15 @@ These are substantial feature builds, not targeted fixes, so they are tracked he
 
 Tests: +4 (1 webhook, 2 recordPayment idempotency, 1 PatientService UID collision). Suite now 567 pass / 1531 assertions.
 Docs: added `docs/INSTALLATION.md` and `docs/ADMIN_GUIDE.md`.
+
+## #18 — Doctor availability: breaks / leave / duration / capacity (slot engine, COMPLETED)
+
+Review item #18 flagged that doctor availability was day-of-week + start/end + is_active only — no breaks, leave, holidays, per-doctor consultation duration, or daily capacity cap. The slot engine (`AppointmentService::availableSlots`, consumed by the public `/book/slots` endpoint) would therefore offer slots during a doctor's lunch and during approved leave. Fixed at the engine/schema level (no UI yet — that remains a future phase):
+
+- **Migration `2026_08_18_000040`** — adds nullable `break_start_time`/`break_end_time` to `doctor_availability`, a new `doctor_leaves` table (dated inclusive `start_date`/`end_date`, `type` LEAVE/HOLIDAY/EMERGENCY/OTHER, `is_approved`, tenant-scoped), and nullable `consultation_duration_minutes`/`max_daily_appointments` on `users`. All nullable → existing rows/flows unaffected.
+- **`DoctorAvailability`** model: fillable + the two break columns. **`DoctorLeave`** model: `onDate()` scope using `whereDate()` (SQLite stores `date` columns as `'Y-m-d 00:00:00'` text — a plain string `<=` comparison fails, same gotcha as `appointment_date`; `whereDate` is correct on both SQLite and MySQL).
+- **`User`**: `leaves()` relation, `consultationDurationMinutes()` (falls back to `klinic.public_booking.consultation_duration_minutes` config, default 30), integer casts for the two new columns.
+- **`DoctorService::setAvailability`** now accepts optional `break_start_time`/`break_end_time` (validated `after:break_start_time`); new `setLeave($doctor, [start_date,end_date,reason?,type?,is_approved?])` method.
+- **`AppointmentService::availableSlots`** now: (1) returns `[]` when an approved `DoctorLeave` covers the date; (2) skips any slot overlapping `[break_start, break_end)` and jumps the cursor past the break (not one-slot-at-a-time); (3) uses the doctor's `consultation_duration_minutes` as the slot interval when set (callers passing an explicit `slotMinutes` for the board still override); (4) marks every slot unavailable once `max_daily_appointments` is met (cap = non-null and booked count ≥ cap).
+- Tests: +9 (6 in `OnlineBookingSlotsTest`: break-skip, approved-leave empties, unapproved-leave keeps slots, per-doctor duration, daily-capacity; 4 in `DoctorServiceTest`: break persistence, break-end-before-start rejection, setLeave create, setLeave end-before-start). Suite now 576 pass / 1559 assertions.
+- **Still a future phase (UI only)**: a Livewire/Blade admin screen to set breaks/leave/duration/capacity — the backend service + API + slot engine are all in place.

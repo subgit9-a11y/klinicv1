@@ -18,6 +18,8 @@ class DoctorAvailabilityFactory extends Factory
             'day_of_week' => fake()->randomElement(['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT']),
             'start_time' => '09:00',
             'end_time' => '17:00',
+            'break_start_time' => null,
+            'break_end_time' => null,
             'is_active' => true,
         ];
     }

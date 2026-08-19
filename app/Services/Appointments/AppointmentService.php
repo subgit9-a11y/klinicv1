@@ -9,6 +9,7 @@ use App\Events\AppointmentConfirmed;
 use App\Models\Appointment;
 use App\Models\AppointmentStatusHistory;
 use App\Models\AppointmentToken;
+use App\Models\DoctorLeave;
 use App\Models\Patient;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
@@ -203,7 +204,18 @@ class AppointmentService
      */
     public function availableSlots(User $doctor, string $date, int $slotMinutes = 15): array
     {
+        // Honour per-doctor consultation duration when set; callers passing an
+        // explicit slotMinutes (e.g. 15-min grid for the board) still override.
+        $slotMinutes = $doctor->consultation_duration_minutes
+            ? $doctor->consultationDurationMinutes()
+            : $slotMinutes;
+
         $dayCode = $this->dayOfWeekCode($date);
+
+        // Approved leave/holiday over this date → no bookable slots.
+        if (DoctorLeave::onDate($date)->where('user_id', $doctor->id)->exists()) {
+            return [];
+        }
 
         $availability = $doctor->availability()
             ->where('day_of_week', $dayCode)
@@ -223,17 +235,42 @@ class AppointmentService
             ->whereNotIn('status', ['CANCELLED', 'NO_SHOW'])
             ->get(['start_time', 'end_time']);
 
+        // Per-doctor daily capacity cap: once met, no further slots are offered.
+        $maxDaily = $doctor->max_daily_appointments;
+        $atCapacity = $maxDaily !== null && $booked->count() >= $maxDaily;
+
         $slots = [];
         foreach ($availability as $block) {
             $cursor = strtotime($block->start_time);
             $end = strtotime($block->end_time);
+            $breakStart = $block->break_start_time ? strtotime($block->break_start_time) : null;
+            $breakEnd = $block->break_end_time ? strtotime($block->break_end_time) : null;
+
             while ($cursor + $slotMinutes * 60 <= $end) {
-                $slotStart = date('H:i', $cursor);
-                $slotEnd = date('H:i', $cursor + $slotMinutes * 60);
-                $overlap = $booked->contains(function ($b) use ($slotStart, $slotEnd) {
-                    return $b->start_time < $slotEnd && $b->end_time > $slotStart;
+                $slotStart = $cursor;
+                $slotEnd = $cursor + $slotMinutes * 60;
+                $slotStartStr = date('H:i', $slotStart);
+                $slotEndStr = date('H:i', $slotEnd);
+
+                // Skip any slot that overlaps the intra-day break window.
+                $inBreak = $breakStart !== null && $breakEnd !== null
+                    && $slotStart < $breakEnd && $slotEnd > $breakStart;
+
+                if ($inBreak) {
+                    // Jump past the break instead of inching forward one slot
+                    // at a time — the whole window is unavailable.
+                    $cursor = $breakEnd;
+                    continue;
+                }
+
+                $overlap = $booked->contains(function ($b) use ($slotStartStr, $slotEndStr) {
+                    return $b->start_time < $slotEndStr && $b->end_time > $slotStartStr;
                 });
-                $slots[] = ['start' => $slotStart, 'end' => $slotEnd, 'available' => ! $overlap];
+                $slots[] = [
+                    'start' => $slotStartStr,
+                    'end' => $slotEndStr,
+                    'available' => ! $overlap && ! $atCapacity,
+                ];
                 $cursor += $slotMinutes * 60;
             }
         }

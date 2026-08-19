@@ -14,7 +14,8 @@ class DoctorAvailability extends Model
     protected $table = 'doctor_availability';
 
     protected $fillable = [
-        'tenant_id', 'user_id', 'day_of_week', 'start_time', 'end_time', 'is_active',
+        'tenant_id', 'user_id', 'day_of_week', 'start_time', 'end_time',
+        'break_start_time', 'break_end_time', 'is_active',
     ];
 
     protected function casts(): array

@@ -101,6 +101,83 @@ class DoctorServiceTest extends TestCase
         ]);
     }
 
+    public function test_set_availability_persists_break_window(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $doctor = User::factory()->forTenant($tenant)->create(['role' => 'DOCTOR']);
+
+        app(DoctorService::class)->setAvailability($doctor, [
+            [
+                'day_of_week' => 'MON',
+                'start_time' => '09:00',
+                'end_time' => '17:00',
+                'break_start_time' => '13:00',
+                'break_end_time' => '14:00',
+            ],
+        ]);
+
+        $this->assertDatabaseHas('doctor_availability', [
+            'user_id' => $doctor->id,
+            'day_of_week' => 'MON',
+            'break_start_time' => '13:00',
+            'break_end_time' => '14:00',
+        ]);
+    }
+
+    public function test_set_availability_rejects_break_end_before_break_start(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $doctor = User::factory()->forTenant($tenant)->create(['role' => 'DOCTOR']);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(DoctorService::class)->setAvailability($doctor, [
+            [
+                'day_of_week' => 'MON',
+                'start_time' => '09:00',
+                'end_time' => '17:00',
+                'break_start_time' => '14:00',
+                'break_end_time' => '13:00',
+            ],
+        ]);
+    }
+
+    public function test_set_leave_creates_approved_leave_record(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $doctor = User::factory()->forTenant($tenant)->create(['role' => 'DOCTOR']);
+
+        $leave = app(DoctorService::class)->setLeave($doctor, [
+            'start_date' => '2026-09-01',
+            'end_date' => '2026-09-03',
+            'reason' => 'Conference',
+            'type' => 'LEAVE',
+        ]);
+
+        $leave->refresh();
+        $this->assertSame($doctor->id, $leave->user_id);
+        $this->assertSame($tenant->id, $leave->tenant_id);
+        $this->assertSame('2026-09-01', $leave->start_date->toDateString());
+        $this->assertSame('2026-09-03', $leave->end_date->toDateString());
+        $this->assertSame('Conference', $leave->reason);
+        $this->assertTrue($leave->is_approved);
+    }
+
+    public function test_set_leave_rejects_end_before_start(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $doctor = User::factory()->forTenant($tenant)->create(['role' => 'DOCTOR']);
+
+        $this->expectException(\Illuminate\Validation\ValidationException::class);
+        app(DoctorService::class)->setLeave($doctor, [
+            'start_date' => '2026-09-05',
+            'end_date' => '2026-09-01',
+        ]);
+    }
+
     public function test_update_profile_updates_doctor_fields(): void
     {
         $tenant = Tenant::factory()->create();

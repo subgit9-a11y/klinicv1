@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace App\Services\Staff;
 
 use App\Models\DoctorAvailability;
+use App\Models\DoctorLeave;
 use App\Models\User;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Database\Eloquent\Collection;
@@ -108,7 +109,7 @@ class DoctorService
     /**
      * Replace a doctor's weekly availability schedule (deletes old, inserts new).
      *
-     * @param  array<array{day_of_week:string,start_time:string,end_time:string}>  $slots
+     * @param  array<array{day_of_week:string,start_time:string,end_time:string,break_start_time?:?string,break_end_time?:?string}>  $slots
      * @return Collection<int, DoctorAvailability>
      */
     public function setAvailability(User $doctor, array $slots): Collection
@@ -121,6 +122,8 @@ class DoctorService
                 'day_of_week' => ['required', 'in:'.implode(',', self::DAYS)],
                 'start_time' => ['required', 'date_format:H:i'],
                 'end_time' => ['required', 'date_format:H:i', 'after:start_time'],
+                'break_start_time' => ['nullable', 'date_format:H:i'],
+                'break_end_time' => ['nullable', 'date_format:H:i', 'after:break_start_time'],
             ]);
         }
 
@@ -136,6 +139,8 @@ class DoctorService
                     'day_of_week' => $slot['day_of_week'],
                     'start_time' => $slot['start_time'],
                     'end_time' => $slot['end_time'],
+                    'break_start_time' => $slot['break_start_time'] ?? null,
+                    'break_end_time' => $slot['break_end_time'] ?? null,
                     'is_active' => true,
                     'created_at' => $now,
                     'updated_at' => $now,
@@ -148,6 +153,36 @@ class DoctorService
 
             return $doctor->availability()->orderBy('day_of_week')->get();
         });
+    }
+
+    /**
+     * Record dated leave (or holiday) for a doctor over an inclusive date range.
+     * Slots are not generated for dates covered by approved leave.
+     *
+     * @param  array{start_date:string,end_date:string,reason?:?string,type?:string,is_approved?:bool}  $attributes
+     */
+    public function setLeave(User $doctor, array $attributes): DoctorLeave
+    {
+        $this->assertSameTenant($doctor);
+        $this->requireTenant();
+
+        $validated = Validator::validate($attributes, [
+            'start_date' => ['required', 'date'],
+            'end_date' => ['required', 'date', 'after_or_equal:start_date'],
+            'reason' => ['nullable', 'string', 'max:255'],
+            'type' => ['nullable', 'in:LEAVE,HOLIDAY,EMERGENCY,OTHER'],
+            'is_approved' => ['boolean'],
+        ]);
+
+        return DoctorLeave::create([
+            'tenant_id' => $doctor->tenant_id,
+            'user_id' => $doctor->id,
+            'start_date' => $validated['start_date'],
+            'end_date' => $validated['end_date'],
+            'reason' => $validated['reason'] ?? null,
+            'type' => $validated['type'] ?? 'LEAVE',
+            'is_approved' => $validated['is_approved'] ?? true,
+        ]);
     }
 
     public function getAvailability(User $doctor): Collection
