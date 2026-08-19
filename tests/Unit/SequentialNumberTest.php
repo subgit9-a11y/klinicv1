@@ -46,6 +46,20 @@ class SequentialNumberTest extends TestCase
         $this->assertSame('K360-INV-000008', $number);
     }
 
+    public function test_next_is_backed_by_a_dedicated_counter_row(): void
+    {
+        $first = SequentialNumber::next('invoices', 'K360-INV', 'invoice_number');
+        $second = SequentialNumber::next('invoices', 'K360-INV', 'invoice_number');
+
+        $this->assertSame('K360-INV-000001', $first);
+        $this->assertSame('K360-INV-000002', $second);
+        // The sequence_counters row exists and holds the next free value —
+        // serialized by SELECT ... FOR UPDATE, so concurrent generators can
+        // never both observe an empty LIKE range.
+        $counter = \App\Models\SequenceCounter::where('scope', 'invoices.invoice_number:K360-INV')->sole();
+        $this->assertSame(3, $counter->next_value);
+    }
+
     public function test_number_columns_have_database_unique_constraints(): void
     {
         // The hard backstop for SequentialNumber: the database itself must

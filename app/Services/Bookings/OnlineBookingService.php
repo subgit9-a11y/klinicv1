@@ -33,9 +33,11 @@ use Illuminate\Support\Str;
  *  5. Create a Cashfree order (PaymentGatewayInterface::createOrder) and persist
  *     a PaymentOrder (payable = Invoice) keyed by gateway_order_id so the
  *     webhook can resolve it.
- *  6. Return the Cashfree checkout URL (hosted checkout). If the gateway is
- *     not configured (dev/test), the flow degrades gracefully: the appointment
- *     remains SCHEDULED with no order and no payment required.
+ *  6. Return the exact checkout URL the gateway supplied (hosted checkout) —
+ *     never a fabricated URL. If the gateway is not configured (dev/test),
+ *     the flow degrades gracefully: the appointment remains SCHEDULED with
+ *     no order and no payment required; in production the booking fails
+ *     closed (paymentUnavailable → 503).
  *
  * The webhook (WebhookController → WebhookProcessor) records the payment against
  * the invoice; OnlineBookingService::confirmOnPayment promotes the appointment
@@ -228,10 +230,12 @@ class OnlineBookingService
                     'status' => 'CREATED',
                     'metadata' => ['return_url' => config('klinic.public_booking.return_url', '/book/done')],
                 ]);
-                // Cashfree hosted checkout URL (orders endpoint returns cf_order_id;
-                // the standard hosted-pay link uses the gateway order id).
-                $paymentUrl = $order['payment_url']
-                    ?? 'https://payments.cashfree.com/order/'.$order['gateway_order_id'];
+                // Only the checkout URL the gateway actually returned — never
+                // fabricated. When Cashfree omits it, payment_url stays null
+                // and the booking remains "payment pending" instead of
+                // redirecting the patient to a constructed (possibly invalid)
+                // third-party URL.
+                $paymentUrl = $order['checkout_url'] ?? null;
             });
         } else {
             Log::warning('Online booking: Cashfree order creation failed', [

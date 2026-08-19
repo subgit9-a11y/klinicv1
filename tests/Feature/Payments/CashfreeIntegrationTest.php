@@ -10,6 +10,7 @@ use App\Models\PaymentWebhook;
 use App\Models\Tenant;
 use App\Services\Payments\CashfreePaymentProvider;
 use App\Services\Payments\CashfreeSubscriptionProvider;
+use Illuminate\Support\Facades\Http;
 use App\Services\Payments\WebhookProcessor;
 use App\Services\Tenancy\TenantContext;
 use Illuminate\Foundation\Testing\RefreshDatabase;
@@ -128,21 +129,82 @@ class CashfreeIntegrationTest extends TestCase
     public function test_webhook_signature_roundtrip(): void
     {
         $provider = app(CashfreePaymentProvider::class);
-        $payload = ['data' => ['order' => ['order_id' => 'cf-123']]];
+        // Signature must be computed over the EXACT raw body (not a re-parsed
+        // JSON re-encode) — same string in, same string verified.
+        $rawBody = '{"data":{"order":{"order_id":"cf-123"}}}';
 
-        $signature = $provider->generateSignature($payload);
+        $signature = $provider->generateSignature($rawBody);
 
-        $this->assertTrue($provider->verifyWebhookSignature($payload, $signature));
+        $this->assertTrue($provider->verifyWebhookSignature($rawBody, $signature));
     }
 
-    public function test_webhook_signature_rejects_tampered_payload(): void
+    public function test_webhook_signature_uses_timestamp_when_supplied(): void
     {
         $provider = app(CashfreePaymentProvider::class);
-        $payload = ['data' => ['order' => ['order_id' => 'cf-123']]];
-        $signature = $provider->generateSignature($payload);
+        $rawBody = '{"data":{"order":{"order_id":"cf-123"}}}';
+        $timestamp = '1700000000';
 
-        $tampered = ['data' => ['order' => ['order_id' => 'cf-999']]];
+        $signature = $provider->generateSignature($rawBody, $timestamp);
+
+        $this->assertTrue($provider->verifyWebhookSignature($rawBody, $signature, $timestamp));
+        // Same body without the timestamp must NOT validate against a
+        // timestamp-signed delivery.
+        $this->assertFalse($provider->verifyWebhookSignature($rawBody, $signature));
+    }
+
+    public function test_webhook_signature_rejects_tampered_body(): void
+    {
+        $provider = app(CashfreePaymentProvider::class);
+        $rawBody = '{"data":{"order":{"order_id":"cf-123"}}}';
+        $signature = $provider->generateSignature($rawBody);
+
+        $tampered = '{"data":{"order":{"order_id":"cf-999"}}}';
         $this->assertFalse($provider->verifyWebhookSignature($tampered, $signature));
+    }
+
+    public function test_webhook_signature_rejects_reencoded_json(): void
+    {
+        $provider = app(CashfreePaymentProvider::class);
+        // A whitespace-different but semantically identical body must fail:
+        // guards against accidental re-encoding of the parsed JSON.
+        $rawBody = '{"data": {"order": {"order_id":"cf-123"}}}';
+        $reEncoded = json_encode(json_decode($rawBody, true), JSON_UNESCAPED_SLASHES);
+        $signature = $provider->generateSignature($rawBody);
+
+        $this->assertNotSame($reEncoded, $rawBody);
+        $this->assertFalse($provider->verifyWebhookSignature($reEncoded, $signature));
+    }
+
+    // --- verify() selects the actual SUCCESS attempt ---
+
+    public function test_verify_selects_success_payment_among_multiple_attempts(): void
+    {
+        Http::fake([
+            'https://api.test.cashfree.com/pg/orders/ORD-1/payments' => Http::response([
+                ['payment_status' => 'FAILED', 'cf_payment_id' => 'pay-failed', 'order_amount' => 499.0],
+                ['payment_status' => 'SUCCESS', 'cf_payment_id' => 'pay-success', 'order_amount' => 499.0],
+            ], 200),
+        ]);
+
+        $result = app(CashfreePaymentProvider::class)->verify('ORD-1');
+
+        $this->assertTrue($result['verified']);
+        $this->assertSame('pay-success', $result['gateway_payment_id']);
+        $this->assertSame(49900, $result['amount_cents']);
+    }
+
+    public function test_verify_reports_unverified_when_no_success_attempt(): void
+    {
+        Http::fake([
+            'https://api.test.cashfree.com/pg/orders/ORD-2/payments' => Http::response([
+                ['payment_status' => 'FAILED', 'cf_payment_id' => 'pay-failed', 'order_amount' => 499.0],
+                ['payment_status' => 'ACTIVE', 'cf_payment_id' => 'pay-active', 'order_amount' => 499.0],
+            ], 200),
+        ]);
+
+        $result = app(CashfreePaymentProvider::class)->verify('ORD-2');
+
+        $this->assertFalse($result['verified']);
     }
 
     // --- Webhook processor idempotency ---

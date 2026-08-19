@@ -4,17 +4,21 @@ declare(strict_types=1);
 
 namespace App\Support;
 
+use App\Models\SequenceCounter;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Generates concurrency-safe sequential human-readable numbers of the
  * form `<PREFIX>-<6-digit>` (e.g. K360-INV-000123).
  *
- * The previous implementation used `Model::max('id') + 1`, which races
- * under concurrent inserts: two requests can read the same max(id) and
- * both produce the same number. This helper derives the next sequence
- * value from `MAX(<numberColumn>)` while holding a transaction-level
- * write lock, and retries on collision.
+ * Backed by a dedicated `sequence_counters` row locked with
+ * SELECT ... FOR UPDATE — the previous implementation locked the LIKE
+ * range over the target table, which serializes on nothing when zero
+ * matching rows exist (both concurrent generators would read max=0). The
+ * counter initializes from the target table's existing numeric-tail max
+ * on first use (deployment continuity). The unique constraint on the
+ * number column remains the final arbiter; the existence-check loop is a
+ * cheap backstop for legacy collisions.
  */
 final class SequentialNumber
 {
@@ -26,27 +30,13 @@ final class SequentialNumber
      */
     public static function next(string $table, string $prefix, string $numberColumn, int $pad = 6): string
     {
+        $scope = "{$table}.{$numberColumn}:{$prefix}";
+
         for ($attempt = 1; $attempt <= 5; $attempt++) {
-            $next = DB::transaction(function () use ($table, $numberColumn, $prefix) {
-                // Hold a write lock over the matching rows so concurrent
-                // generators serialize on the same prefix range.
-                $rows = DB::table($table)
-                    ->where($numberColumn, 'like', $prefix.'-%')
-                    ->lockForUpdate()
-                    ->get([$numberColumn]);
+            $next = DB::transaction(function () use ($table, $numberColumn, $prefix, $scope) {
+                $counter = SequenceCounter::lockFor($scope, fn () => self::initialValue($table, $numberColumn, $prefix) + 1);
 
-                $max = 0;
-                foreach ($rows as $row) {
-                    $value = $row->{$numberColumn} ?? '';
-                    // Strip the prefix and any leading zeros to recover the
-                    // integer segment.
-                    $tail = substr((string) $value, strlen($prefix) + 1);
-                    if (is_numeric($tail) && ctype_digit((string) $tail)) {
-                        $max = max($max, (int) $tail);
-                    }
-                }
-
-                return $max + 1;
+                return $counter->consume();
             });
 
             $number = $prefix.'-'.str_pad((string) $next, $pad, '0', STR_PAD_LEFT);
@@ -57,7 +47,27 @@ final class SequentialNumber
         }
 
         // Last-resort fallback: a high-resolution unique suffix so the value
-        // remains unique even if the counter raced beyond retries.
+        // remains unique even if the counter drifted past retries.
         return $prefix.'-'.strtoupper(dechex(time())).strtoupper(dechex(random_int(0, 0xFFFFFF)));
+    }
+
+    /**
+     * Highest numeric tail among existing `<PREFIX>-<digits>` values.
+     * Extraction is done in PHP so it is portable across SQLite and MySQL.
+     */
+    private static function initialValue(string $table, string $numberColumn, string $prefix): int
+    {
+        $max = 0;
+        DB::table($table)
+            ->where($numberColumn, 'like', $prefix.'-%')
+            ->pluck($numberColumn)
+            ->each(function ($value) use (&$max, $prefix) {
+                $tail = substr((string) $value, strlen($prefix) + 1);
+                if (is_numeric($tail) && ctype_digit((string) $tail)) {
+                    $max = max($max, (int) $tail);
+                }
+            });
+
+        return $max;
     }
 }

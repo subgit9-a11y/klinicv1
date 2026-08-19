@@ -13,8 +13,13 @@ interface PaymentGatewayInterface
     /**
      * Create an order at the gateway.
      *
+     * `checkout_url` is the EXACT hosted-checkout URL returned by the
+     * gateway. It must never be fabricated client-side; when the gateway
+     * doesn't supply one, return null and let the caller surface
+     * "payment pending" instead of a constructed URL.
+     *
      * @param  array<string, mixed>  $metadata
-     * @return array{success: bool, gateway_order_id: ?string, gateway_payment_id: ?string, message: string}
+     * @return array{success: bool, gateway_order_id: ?string, gateway_payment_id: ?string, checkout_url: ?string, message: string}
      */
     public function createOrder(string $internalOrderId, int $amountCents, string $currency, string $customerEmail, string $customerPhone, array $metadata = []): array;
 

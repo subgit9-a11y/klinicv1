@@ -26,13 +26,18 @@ class WebhookController extends Controller
     {
         $payload = $request->json()->all();
         $signature = (string) (
-            $request->headers->get('X-Cf-Signature')
+            $request->headers->get('x-webhook-signature')
+            ?? $request->headers->get('X-Cf-Signature')
             ?? $request->headers->get('X-Cashfree-Signature')
             ?? $request->headers->get('x-cf-signature')
             ?? ''
         );
+        $timestamp = $request->headers->get('x-webhook-timestamp');
 
-        $result = $this->processor->process($payload, $signature);
+        // Signature verification must run against the EXACT raw HTTP body —
+        // never a re-encoding of the parsed JSON (whitespace/escaping surely
+        // differs from Cashfree's original and would reject valid webhooks).
+        $result = $this->processor->process($payload, $signature, $request->getContent(), $timestamp);
 
         // The processor returns a semantic status: 200 for processed/safely
         // idempotent events, 4xx for deterministic rejections (bad signature,

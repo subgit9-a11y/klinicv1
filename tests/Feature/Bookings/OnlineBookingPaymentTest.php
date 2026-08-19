@@ -459,6 +459,26 @@ class OnlineBookingPaymentTest extends TestCase
         $order->markPaid();
     }
 
+    public function test_gateway_omitting_checkout_url_keeps_booking_payment_pending(): void
+    {
+        $this->swapGatewayWithoutCheckoutUrl('K360-ORD-NOURL-001');
+
+        $result = app(OnlineBookingService::class)->book($this->tenant, [
+            'first_name' => 'No',
+            'last_name' => 'Url',
+            'phone' => '1111111111',
+            'user_id' => $this->doctor->id,
+            'appointment_date' => now()->addDay()->toDateString(),
+            'start_time' => '11:00',
+        ]);
+
+        $this->assertTrue($result['gateway_configured']);
+        $this->assertNotNull($result['invoice']);
+        // No URL is fabricated — the booking stays payment-pending.
+        $this->assertNull($result['payment_url']);
+        $this->assertDatabaseHas('payment_orders', ['gateway_order_id' => 'K360-ORD-NOURL-001']);
+    }
+
     /**
      * Swap the bound CashfreePaymentProvider concrete (used by WebhookProcessor
      * for signature verification + server-side verify()) with a fake that
@@ -494,7 +514,7 @@ class OnlineBookingPaymentTest extends TestCase
                     ];
                 }
 
-                public function verifyWebhookSignature(array $payload, string $signature): bool
+                public function verifyWebhookSignature(string $rawBody, string $signature, ?string $timestamp = null): bool
                 {
                     return true;
                 }
@@ -532,6 +552,7 @@ class OnlineBookingPaymentTest extends TestCase
                         'success' => true,
                         'gateway_order_id' => $this->gatewayOrderId,
                         'gateway_payment_id' => null,
+                        'checkout_url' => 'https://sandbox-checkout.example/'.$this->gatewayOrderId,
                         'message' => 'Order created',
                     ];
                 }
@@ -551,6 +572,56 @@ class OnlineBookingPaymentTest extends TestCase
                 public function refund(string $gatewayPaymentId, int $amountCents, ?string $reason = null): array
                 {
                     return ['success' => true, 'gateway_refund_id' => 'cf-ref-'.$gatewayPaymentId, 'message' => 'Refunded'];
+                }
+            };
+        });
+    }
+
+    /**
+     * Fake gateway that omits a checkout URL entirely — the booking must not
+     * fabricate one (payment stays pending).
+     */
+    private function swapGatewayWithoutCheckoutUrl(string $gatewayOrderId): void
+    {
+        app()->bind(PaymentGatewayInterface::class, function () use ($gatewayOrderId) {
+            return new class($gatewayOrderId) implements PaymentGatewayInterface {
+                public function __construct(private readonly string $gatewayOrderId) {}
+
+                public function isConfigured(): bool
+                {
+                    return true;
+                }
+
+                public function name(): string
+                {
+                    return 'CASHFREE';
+                }
+
+                public function createOrder(string $internalOrderId, int $amountCents, string $currency, string $customerEmail, string $customerPhone, array $metadata = []): array
+                {
+                    return [
+                        'success' => true,
+                        'gateway_order_id' => $this->gatewayOrderId,
+                        'gateway_payment_id' => null,
+                        'message' => 'Order created',
+                    ];
+                }
+
+                public function verify(string $gatewayOrderId): array
+                {
+                    return [
+                        'success' => true,
+                        'verified' => false,
+                        'gateway_order_id' => $gatewayOrderId,
+                        'gateway_payment_id' => null,
+                        'amount_cents' => null,
+                        'message' => 'PENDING',
+                    ];
+                }
+
+                public function refund(string $gatewayPaymentId, int $amountCents, ?string $reason = null): array
+                {
+                    return ['success' => false, 'message' => 'not used'];
                 }
             };
         });

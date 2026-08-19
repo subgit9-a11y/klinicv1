@@ -48,9 +48,12 @@ class WebhookProcessor
      * Process a Cashfree webhook payload.
      *
      * @param  string  $signature  Raw signature from the webhook header
+     * @param  string|null  $rawBody  Exact raw HTTP request body (signature
+     *   verification input — MUST NOT be a re-encoded JSON parse)
+     * @param  string|null  $timestamp  Value of the x-webhook-timestamp header
      * @return array{status: int, processed: bool, event_id: ?string, message: string}
      */
-    public function process(array $payload, string $signature): array
+    public function process(array $payload, string $signature, ?string $rawBody = null, ?string $timestamp = null): array
     {
         $eventType = $payload['type'] ?? $payload['event'] ?? 'PAYMENT_STATUS';
         $gatewayOrderId = $payload['data']['order']['order_id']
@@ -101,7 +104,7 @@ class WebhookProcessor
         // same tampered payload would fail again — 401 is honest here. The
         // stored row (processed=false) means a later delivery with a VALID
         // signature still processes.
-        if ($this->gateway->isConfigured() && ! $this->gateway->verifyWebhookSignature($payload, $signature)) {
+        if ($this->gateway->isConfigured() && ! $this->gateway->verifyWebhookSignature($rawBody ?? (string) json_encode($payload, JSON_UNESCAPED_SLASHES), $signature, $timestamp)) {
             Log::warning('Cashfree webhook signature verification failed', ['event_id' => $eventId]);
 
             return ['status' => 401, 'processed' => false, 'event_id' => $eventId, 'message' => 'Signature verification failed'];

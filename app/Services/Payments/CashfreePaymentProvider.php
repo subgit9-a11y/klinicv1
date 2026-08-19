@@ -50,7 +50,7 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
 
     /**
      * @param  array<string, mixed>  $metadata
-     * @return array{success: bool, gateway_order_id: ?string, gateway_payment_id: ?string, message: string}
+     * @return array{success: bool, gateway_order_id: ?string, gateway_payment_id: ?string, checkout_url: ?string, message: string}
      */
     public function createOrder(
         string $internalOrderId,
@@ -61,7 +61,7 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
         array $metadata = []
     ): array {
         if (! $this->isConfigured()) {
-            return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'message' => 'Cashfree not configured'];
+            return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'checkout_url' => null, 'message' => 'Cashfree not configured'];
         }
 
         $amount = number_format($amountCents / 100, 2, '.', '');
@@ -93,17 +93,25 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
                     'success' => true,
                     'gateway_order_id' => $data['order_id'] ?? $internalOrderId,
                     'gateway_payment_id' => $data['cf_payment_id'] ?? null,
+                    // Only the URL Cashfree actually returned — never
+                    // constructed from the order id. If absent the caller
+                    // keeps the booking payment-pending instead of sending
+                    // the patient to a fabricated link.
+                    'checkout_url' => $data['payment_checkout_url']
+                        ?? $data['payment_links']['web']
+                        ?? $data['checkout_url']
+                        ?? null,
                     'message' => 'Order created',
                 ];
             }
 
             Log::warning('Cashfree createOrder failed', ['status' => $response->status(), 'body' => $response->body()]);
 
-            return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'message' => 'Gateway error: '.$response->status()];
+            return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'checkout_url' => null, 'message' => 'Gateway error: '.$response->status()];
         } catch (\Throwable $e) {
             Log::error('Cashfree createOrder exception', ['error' => $e->getMessage()]);
 
-            return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'message' => 'Gateway exception'];
+            return ['success' => false, 'gateway_order_id' => null, 'gateway_payment_id' => null, 'checkout_url' => null, 'message' => 'Gateway exception'];
         }
     }
 
@@ -126,7 +134,24 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
             }
 
             $payments = $response->json();
-            $payment = is_array($payments) && isset($payments[0]) ? $payments[0] : $payments;
+
+            // An order may carry MULTIPLE payment attempts (attempt 1 FAILED,
+            // attempt 2 SUCCESS). Selecting payments[0] by index can treat a
+            // successful order as unpaid depending on response ordering — find
+            // the attempt whose status is SUCCESS and use THAT attempt's
+            // cf_payment_id / amount for settlement.
+            $attempts = is_array($payments) ? array_values($payments) : [];
+            $payment = null;
+            foreach ($attempts as $attempt) {
+                $attemptStatus = strtoupper((string) ($attempt['payment_status'] ?? $attempt['order_status'] ?? ''));
+                if ($attemptStatus === 'SUCCESS') {
+                    $payment = $attempt;
+                    break;
+                }
+            }
+            // No successful attempt: report the first attempt's status.
+            $payment ??= $attempts[0] ?? null;
+            $payment ??= is_array($payments) ? $payments : [];
 
             $status = $payment['payment_status'] ?? $payment['order_status'] ?? 'UNKNOWN';
             $verified = strtoupper($status) === 'SUCCESS';
@@ -188,37 +213,37 @@ class CashfreePaymentProvider implements PaymentGatewayInterface
     }
 
     /**
-     * Verify the webhook signature. Cashfree sends a base64-encoded
-     * SHA-256 signature in the `X-Cf-Signature` header computed over
-     * the raw payload body + timestamp.
+     * Verify the webhook signature. Cashfree's documented scheme signs the
+     * EXACT raw HTTP body, optionally prefixed by the `x-webhook-timestamp`
+     * header value:
+     *   signature = base64(hmac_sha256(timestamp + rawBody, secretKey))
      *
-     * @param  array  $payload  Parsed webhook body (for reference)
-     * @param  string  $signature  Raw signature header value
+     * The raw body MUST be `$request->getContent()` — never a re-encoding of
+     * the parsed JSON, which changes whitespace/escaping/ordering and can
+     * reject legitimate deliveries.
+     *
+     * @param  string  $rawBody  Raw HTTP request body
+     * @param  string  $signature  Value of the `x-webhook-signature` /
+     *   legacy `x-cf-signature` header
      */
-    public function verifyWebhookSignature(array $payload, string $signature): bool
+    public function verifyWebhookSignature(string $rawBody, string $signature, ?string $timestamp = null): bool
     {
         if (! $this->isConfigured()) {
             return false;
         }
 
-        // Cashfree webhook v2: signature = base64(hmac_sha256(rawBody, secretKey))
-        // The raw body must be re-encoded. For testing, we accept a
-        // computed signature over the JSON-encoded payload.
-        $rawBody = json_encode($payload, JSON_UNESCAPED_SLASHES);
-        $expected = base64_encode(hash_hmac('sha256', $rawBody, $this->secretKey, true));
+        $expected = $this->generateSignature($rawBody, $timestamp);
 
         return hash_equals($expected, $signature);
     }
 
     /**
-     * Generate a webhook signature for a given payload (used by tests
-     * and internal webhook simulation).
+     * Generate a webhook signature for a raw body (used by tests and
+     * internal webhook simulation).
      */
-    public function generateSignature(array $payload): string
+    public function generateSignature(string $rawBody, ?string $timestamp = null): string
     {
-        $rawBody = json_encode($payload, JSON_UNESCAPED_SLASHES);
-
-        return base64_encode(hash_hmac('sha256', $rawBody, $this->secretKey, true));
+        return base64_encode(hash_hmac('sha256', (string) $timestamp.$rawBody, $this->secretKey, true));
     }
 
     /**
