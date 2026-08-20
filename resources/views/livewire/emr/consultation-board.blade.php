@@ -236,4 +236,11 @@
             </div>
         </div>
     @endif
+
+    {{-- AI Scribe assistant, bound into the active consultation --}}
+    @if($this->activeConsultationId)
+        <div class="lg:col-span-3">
+            <livewire:emr.ai-scribe-panel :consultation="\App\Models\Consultation::find($this->activeConsultationId)" wire:key="scribe-{{ $this->activeConsultationId }}" />
+        </div>
+    @endif
 </div>

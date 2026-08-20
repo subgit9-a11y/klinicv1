@@ -12,6 +12,7 @@ class DatabaseSeeder extends Seeder
             PlanSeeder::class,
             SystemSettingsSeeder::class,
             NotificationTemplateSeeder::class,
+            AiScribeSeeder::class,
             RbacSeeder::class,
             AdminUserSeeder::class,
         ]);
