@@ -58,6 +58,21 @@ class PermissionService
         Cache::forget($this->cacheKey($user));
     }
 
+    /**
+     * Invalidate every user holding a role (primary or extra user_roles) —
+     * call after Super Admin edits the role's DB grants.
+     */
+    public function flushRole(string $roleName): void
+    {
+        User::where('role', $roleName)
+            ->get(['id'])
+            ->each(fn (User $u) => $this->flush($u));
+
+        User::whereHas('rbacRoles', fn ($q) => $q->where('name', $roleName))
+            ->get(['id'])
+            ->each(fn (User $u) => $this->flush($u));
+    }
+
     private function cacheKey(User $user): string
     {
         return "klinic:perms:{$user->id}";
@@ -68,7 +83,13 @@ class PermissionService
      */
     private function resolvePermissions(User $user): array
     {
-        $effective = array_values(array_unique(RolePermissions::forRole($user->role)));
+        // DB-backed RBAC: when the roles tables are synced, the DB is the
+        // source of truth (Super Admin can redesign permissions without a
+        // deploy); otherwise fall back to the code-defined catalog.
+        $rbac = app(RbacService::class);
+        $effective = $rbac->isSynced()
+            ? $rbac->permissionsFor($user)
+            : array_values(array_unique(RolePermissions::forRole($user->role)));
 
         $overrides = $this->overrides($user);
 

@@ -89,6 +89,15 @@ class User extends Authenticatable implements MustVerifyEmail
         return in_array($this->role, (array) $roles, true);
     }
 
+    /**
+     * Additional DB roles (user_roles) stacked on top of users.role —
+     * resolved by RbacService when the DB is synced.
+     */
+    public function rbacRoles(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(\App\Models\Rbac\Role::class, 'user_roles');
+    }
+
     public function hasPermission(string $permission): bool
     {
         return app(PermissionService::class)->can($this, $permission);

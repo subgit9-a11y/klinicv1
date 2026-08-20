@@ -140,6 +140,8 @@ Route::middleware(['auth', 'active', 'verified', '2fa'])->group(function () {
         ->name('super-admin.integrations');
     Route::get('/super-admin/operations', \App\Livewire\SuperAdmin\OperationsCenter::class)
         ->name('super-admin.operations');
+    Route::get('/super-admin/rbac', \App\Livewire\SuperAdmin\RbacManagement::class)
+        ->name('super-admin.rbac');
 });
 
 require __DIR__.'/auth.php';

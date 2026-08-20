@@ -27,6 +27,7 @@
         ['route' => 'super-admin.tenants', 'label' => 'Clinics', 'icon' => '🏥'],
         ['route' => 'super-admin.users', 'label' => 'Users', 'icon' => '👤'],
         ['route' => 'super-admin.subscriptions', 'label' => 'Subscriptions', 'icon' => '💳'],
+        ['route' => 'super-admin.rbac', 'label' => 'Roles & Perms', 'icon' => '🔑'],
         ['route' => 'super-admin.integrations', 'label' => 'Integrations', 'icon' => '🔌'],
         ['route' => 'super-admin.operations', 'label' => 'Operations', 'icon' => '📊'],
         ['route' => 'super-admin.configuration', 'label' => 'Configuration', 'icon' => '⚙'],

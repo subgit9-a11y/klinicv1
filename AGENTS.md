@@ -455,3 +455,15 @@ Six Livewire operator screens closing the "backend far ahead of frontend" gap (r
 - **`Livewire/Telemedicine/TeleconsultationBoard`** (GET `/teleconsultations`, guard `appointments.create`) — schedule (patient autocomplete) + start/end/cancel/no-show + meeting_url join link. **Gotcha**: `Teleconsultation` relation is `doctor()` not `user()`, and start() produces status `STARTED` (not IN_PROGRESS).
 - Sidebar grows: Doctors, Teleconsult, Catalogue, IPD Config, Cash Register, Expenses.
 - Tests: `DoctorDirectoryTest` (8), `CatalogAndConfigTest` (6), `BillingScreensTest` (5), `TeleconsultationBoardTest` (2). +21.
+
+## DB-backed RBAC — Phase 4 (COMPLETED)
+
+`roles`/`permissions`/`role_permissions`/`user_roles` tables (migration `2026_08_19_000050`) + `app/Models/Rbac/{Role,Permission}` + `App\Services\Auth\RbacService`. Suite now **697 pass / 1861 assertions**.
+
+- **Resolution**: `PermissionService::resolvePermissions` uses the DB when `RbacService::isSynced()` (roles table non-empty), else falls back to the code `RolePermissions` catalog — so unsynced installs behave identically to before, and after sync the DB is authoritative. `User::rbacRoles()` (user_roles pivot) stacks extra roles on primary `users.role`. SUPER_ADMIN bypass + grants/revokes overrides unchanged.
+- **Sync**: `RbacService::syncFromCode()` mirrors the code catalog (`RolePermissions::roles()` + `forRole()`; 8 roles today) idempotently — `firstOrCreate` + `syncWithoutDetaching`. `RbacSeeder` runs it in `DatabaseSeeder` so fresh installs start synced; the Super Admin UI has a "Sync from code defaults" button too.
+- **Cache flush**: `PermissionService::flushRole($name)` invalidates primary+extra roleholders after grant edits; `flush(User)` after user-role toggles; sync flushes ALL users.
+- **`RbacManagement`** (`GET /super-admin/rbac`): Roles tab (create/edit/delete; delete refused when users hold it or it's SUPER_ADMIN) + grants checkbox matrix grouped by permission module; Permissions tab (create custom key regex `[a-z0-9_.]+`, delete); User roles tab (search user, toggle extra roles); sync button with not-synced banner.
+- **Pivot gotcha**: Laravel's `belongsToMany()->withTimestamps()` takes NO args — calling `withTimestamps(false)` ENABLES timestamps and breaks sync inserts on a timestamps-less pivot. Omit the call entirely.
+- Tests: `RbacDatabaseTest` (5 — fallback code catalog, DB authoritative, user_roles stacking, role flush, super admin bypass), `RbacManagementTest` (8). +13.
+- **Still future**: per-user `permissions` JSON overrides remain code-file-layer (hardcoded grants/revokes, DB could expose them in a future phase).
