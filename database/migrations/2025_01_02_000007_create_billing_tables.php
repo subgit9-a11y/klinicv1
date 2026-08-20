@@ -64,7 +64,7 @@ return new class extends Migration
             $t->string('cheque_number')->nullable();
             $t->string('bank_name')->nullable();
             $t->text('notes')->nullable();
-            $t->foreignId('cash_register_id')->nullable()->constrained()->nullOnDelete();
+            $t->foreignId('cash_register_id')->nullable();
             $t->foreignId('collected_by')->nullable()->constrained('users')->nullOnDelete();
             $t->timestamp('paid_at')->nullable();
             $t->timestamps();
@@ -131,7 +131,7 @@ return new class extends Migration
             $t->unsignedInteger('amount_cents')->default(0);
             $t->string('currency', 8)->default('INR');
             $t->string('payment_method', 24)->nullable();
-            $t->foreignId('cash_register_id')->nullable()->constrained()->nullOnDelete();
+            $t->foreignId('cash_register_id')->nullable();
             $t->foreignId('created_by')->nullable()->constrained('users')->nullOnDelete();
             $t->date('expense_date')->index();
             $t->string('receipt_path')->nullable();
@@ -165,6 +165,22 @@ return new class extends Migration
             $t->foreignId('user_id')->nullable()->constrained()->nullOnDelete();
             $t->timestamps();
             $t->index(['tenant_id', 'cash_register_id']);
+        });
+
+        // treatment_bookings.invoice_id FK is deferred from the treatments
+        // migration (000005) because invoices doesn't exist there yet.
+        Schema::table('treatment_bookings', function (Blueprint $t) {
+            $t->foreign('invoice_id')->references('id')->on('invoices')->nullOnDelete();
+        });
+
+        // payments/expenses cash_register_id FKs are deferred because
+        // cash_registers is created later in this same migration — MySQL
+        // enforces referenced-table existence at constraint time.
+        Schema::table('payments', function (Blueprint $t) {
+            $t->foreign('cash_register_id')->references('id')->on('cash_registers')->nullOnDelete();
+        });
+        Schema::table('expenses', function (Blueprint $t) {
+            $t->foreign('cash_register_id')->references('id')->on('cash_registers')->nullOnDelete();
         });
     }
 

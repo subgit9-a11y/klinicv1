@@ -33,8 +33,10 @@ class SqlHelperTest extends TestCase
 
     public function test_default_driver_resolves_from_connection(): void
     {
-        $this->assertSame('sqlite', config('database.default'));
-        $this->assertSame('first_name || " " || last_name', Sql::personNameConcat());
+        // Driver-agnostic: whatever the current suite connection is, the
+        // no-arg call must match the explicit-driver call for it.
+        $driver = config('database.connections.'.config('database.default').'.driver');
+        $this->assertSame(Sql::personNameConcat($driver), Sql::personNameConcat());
     }
 
     public function test_name_concat_search_matches_full_name(): void

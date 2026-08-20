@@ -15,7 +15,7 @@ class NotificationDelivery extends Model
         'tenant_id', 'notification_template_id', 'notification_id',
         'notifiable_type', 'notifiable_id', 'channel', 'event_id', 'recipient',
         'status', 'provider_reference', 'error', 'attempts',
-        'sent_at', 'delivered_at',
+        'sent_at', 'delivered_at', 'read_at',
     ];
 
     protected function casts(): array
@@ -24,6 +24,7 @@ class NotificationDelivery extends Model
             'attempts' => 'integer',
             'sent_at' => 'datetime',
             'delivered_at' => 'datetime',
+            'read_at' => 'datetime',
         ];
     }
 

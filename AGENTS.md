@@ -467,3 +467,18 @@ Six Livewire operator screens closing the "backend far ahead of frontend" gap (r
 - **Pivot gotcha**: Laravel's `belongsToMany()->withTimestamps()` takes NO args — calling `withTimestamps(false)` ENABLES timestamps and breaks sync inserts on a timestamps-less pivot. Omit the call entirely.
 - Tests: `RbacDatabaseTest` (5 — fallback code catalog, DB authoritative, user_roles stacking, role flush, super admin bypass), `RbacManagementTest` (8). +13.
 - **Still future**: per-user `permissions` JSON overrides remain code-file-layer (hardcoded grants/revokes, DB could expose them in a future phase).
+
+## MySQL/MariaDB runtime validation — Phase 6 (COMPLETED)
+
+Full suite now runs green on **both** SQLite (in-memory) and MariaDB 11.8: **697 pass / 1860 assertions**. Run with env overrides:
+```bash
+DB_CONNECTION=mysql DB_DATABASE=klinic_test DB_USERNAME=... php artisan migrate --force && php artisan test
+```
+
+Bugs the MySQL run caught (all fixed):
+- **Forward FK references (schema)** — `treatment_bookings` in migration 000005 was created BEFORE `treatment_plans`/`treatment_packages` and referenced the 000007 `invoices` table. SQLite ignores FK ordering; MySQL errors (errno 150). Fixed by creating bookings after plans+packages and DEFERRING the `invoice_id` FK to the billing migration via `Schema::table`. Same class: `payments.cash_register_id` and `expenses.cash_register_id` referenced `cash_registers` (later in the same 000007 file) — deferred similarly. So: **MySQL requires referenced tables to exist when the FK is added**; scan new migrations for forward refs.
+- **MySQL 64-char identifier limit** — auto index name `treatment_bookings_tenant_id_treatment_room_id_booking_date_index` (68) failed on MySQL; explicitly named `tb_room_date_index`.
+- **Missing `read_at` column (schema)** — `NotificationController` queried/wrote `notification_deliveries.read_at` which no migration created; sqlite tests passed because... they shouldn't have — treat the MySQL run as the source of truth. Fixed via migration `2026_08_20_000060_add_read_at_to_notification_deliveries` + fillable/cast on the model.
+- **TIME column format divergence** — MySQL returns `'HH:MM:SS'`, SQLite `'HH:MM'`. Normalized at the `Appointment` model via `getStartTimeAttribute`/`getEndTimeAttribute` accessors (substr 0,5) so service slot-overlap string comparisons and API resources are driver-correct. `AppointmentResource` additionally normalizes explicitly.
+- **Test fixes**: AI approve test hardcoded `approved_by=1` (MySQL enforces the FK, sqlite didn't) — now uses a real user; `SqlHelperTest` driver assertion is driver-agnostic.
+- Migration files are NOT atomic on MySQL (DDL implicit commits) — a failed migration leaves partial tables; drop the DB and re-run when iterating.

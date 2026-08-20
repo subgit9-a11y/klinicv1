@@ -16,8 +16,10 @@ class AppointmentResource extends JsonResource
             'type' => $this->type,
             'status' => $this->status,
             'appointment_date' => $this->appointment_date?->toDateString(),
-            'start_time' => $this->start_time,
-            'end_time' => $this->end_time,
+            // MySQL returns 'HH:MM:SS' for time columns, SQLite 'HH:MM' —
+            // normalize to HH:MM in the API contract.
+            'start_time' => $this->start_time !== null ? substr((string) $this->start_time, 0, 5) : null,
+            'end_time' => $this->end_time !== null ? substr((string) $this->end_time, 0, 5) : null,
             'duration_minutes' => $this->duration_minutes,
             'reason' => $this->reason,
             'notes' => $this->notes,

@@ -74,28 +74,6 @@ return new class extends Migration
             $t->index(['tenant_id', 'category']);
         });
 
-        Schema::create('treatment_bookings', function (Blueprint $t) {
-            $t->id();
-            $t->foreignId('tenant_id')->constrained()->cascadeOnDelete();
-            $t->foreignId('patient_id')->constrained()->cascadeOnDelete();
-            $t->foreignId('treatment_service_id')->constrained()->cascadeOnDelete();
-            $t->foreignId('therapist_id')->nullable()->constrained()->nullOnDelete();
-            $t->foreignId('treatment_room_id')->nullable()->constrained()->nullOnDelete();
-            $t->foreignId('treatment_plan_id')->nullable()->constrained()->cascadeOnDelete();
-            $t->foreignId('treatment_package_id')->nullable()->constrained()->cascadeOnDelete();
-            $t->foreignId('invoice_id')->nullable()->constrained()->nullOnDelete();
-            $t->date('booking_date')->index();
-            $t->time('start_time');
-            $t->time('end_time')->nullable();
-            $t->string('status', 24)->default('BOOKED')->index()->comment('BOOKED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW');
-            $t->string('payment_mode', 24)->default('PAY_AT_CLINIC');
-            $t->timestamp('completed_at')->nullable();
-            $t->timestamps();
-            $t->index(['tenant_id', 'patient_id']);
-            $t->index(['tenant_id', 'therapist_id', 'booking_date']);
-            $t->index(['tenant_id', 'treatment_room_id', 'booking_date']);
-        });
-
         Schema::create('treatment_plans', function (Blueprint $t) {
             $t->id();
             $t->foreignId('tenant_id')->constrained()->cascadeOnDelete();
@@ -141,6 +119,32 @@ return new class extends Migration
             $t->foreignId('treatment_service_id')->constrained()->cascadeOnDelete();
             $t->unsignedInteger('quantity')->default(1);
             $t->timestamps();
+        });
+
+        // NOTE: bookings references plans + packages, so it must be created
+        // AFTER both (MySQL enforces FK existence; SQLite tolerated the
+        // forward references). The invoice_id FK is added by the billing
+        // migration (000007), where invoices exists.
+        Schema::create('treatment_bookings', function (Blueprint $t) {
+            $t->id();
+            $t->foreignId('tenant_id')->constrained()->cascadeOnDelete();
+            $t->foreignId('patient_id')->constrained()->cascadeOnDelete();
+            $t->foreignId('treatment_service_id')->constrained()->cascadeOnDelete();
+            $t->foreignId('therapist_id')->nullable()->constrained()->nullOnDelete();
+            $t->foreignId('treatment_room_id')->nullable()->constrained()->nullOnDelete();
+            $t->foreignId('treatment_plan_id')->nullable()->constrained()->cascadeOnDelete();
+            $t->foreignId('treatment_package_id')->nullable()->constrained()->cascadeOnDelete();
+            $t->foreignId('invoice_id')->nullable();
+            $t->date('booking_date')->index();
+            $t->time('start_time');
+            $t->time('end_time')->nullable();
+            $t->string('status', 24)->default('BOOKED')->index()->comment('BOOKED, IN_PROGRESS, COMPLETED, CANCELLED, NO_SHOW');
+            $t->string('payment_mode', 24)->default('PAY_AT_CLINIC');
+            $t->timestamp('completed_at')->nullable();
+            $t->timestamps();
+            $t->index(['tenant_id', 'patient_id']);
+            $t->index(['tenant_id', 'therapist_id', 'booking_date']);
+            $t->index(['tenant_id', 'treatment_room_id', 'booking_date'], 'tb_room_date_index');
         });
 
         Schema::create('treatment_sessions', function (Blueprint $t) {

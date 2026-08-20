@@ -29,6 +29,21 @@ class Appointment extends Model
         ];
     }
 
+    /**
+     * MySQL TIME columns read as 'HH:MM:SS', SQLite as 'HH:MM'. Normalize to
+     * HH:MM everywhere so string comparisons (slot overlap checks) and API
+     * responses behave identically on both drivers.
+     */
+    public function getStartTimeAttribute($value): ?string
+    {
+        return $value !== null ? substr((string) $value, 0, 5) : null;
+    }
+
+    public function getEndTimeAttribute($value): ?string
+    {
+        return $value !== null ? substr((string) $value, 0, 5) : null;
+    }
+
     public function patient(): BelongsTo
     {
         return $this->belongsTo(Patient::class);

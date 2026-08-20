@@ -11,6 +11,7 @@ use App\Models\AiPromptVersion;
 use App\Models\AiRequest;
 use App\Models\Patient;
 use App\Models\Tenant;
+use App\Models\User;
 use App\Services\AI\AIContextBuilder;
 use App\Services\AI\AIManager;
 use App\Services\AI\GeminiProvider;
@@ -104,12 +105,15 @@ class AIManagerTest extends TestCase
             'output_status' => 'DRAFT',
             'status' => 'SUCCESS',
         ]);
+        // Real approver row — ai_requests.approved_by is FK'd to users and
+        // MySQL enforces FKs where SQLite tolerated the phantom id 1.
+        $approver = User::factory()->forTenant($tenant)->role('DOCTOR')->create();
 
-        $approved = app(AIManager::class)->approve($aiRequest, 1);
+        $approved = app(AIManager::class)->approve($aiRequest, $approver->id);
 
         $this->assertSame('APPROVED', $approved->output_status);
         $this->assertNotNull($approved->approved_at);
-        $this->assertSame(1, $approved->approved_by);
+        $this->assertSame($approver->id, $approved->approved_by);
     }
 
     public function test_ai_manager_reject_sets_rejected_status(): void
