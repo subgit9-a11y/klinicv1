@@ -24,19 +24,37 @@ class DoctorService
     public const DAYS = ['MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT', 'SUN'];
 
     /**
+     * Doctor listing. User has NO BelongsToTenant global scope (Super Admin
+     * must see everyone), so the tenant filter is explicit here: when a
+     * tenant context is set, only that tenant's doctors are returned; with
+     * no context (Super Admin) the listing is intentionally global.
+     *
      * @return Collection<int, User>
      */
     public function listDoctors(): Collection
     {
-        return User::role('DOCTOR')
+        $query = User::role('DOCTOR')
             ->where('is_active', true)
-            ->orderBy('name')
-            ->get();
+            ->orderBy('name');
+
+        $tenantId = app(TenantContext::class)->id();
+        if ($tenantId !== null) {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        return $query->get();
     }
 
     public function find(int $id): ?User
     {
-        return User::role('DOCTOR')->find($id);
+        $query = User::role('DOCTOR');
+
+        $tenantId = app(TenantContext::class)->id();
+        if ($tenantId !== null) {
+            $query->where('tenant_id', $tenantId);
+        }
+
+        return $query->find($id);
     }
 
     /**

@@ -90,6 +90,14 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
     Route::post('/billing/invoices/{invoice}/pay', [BillingController::class, 'recordPayment'])->name('billing.pay');
     Route::post('/billing/invoices/{invoice}/void', [BillingController::class, 'void'])->name('billing.void');
 
+    // Clinic operator screens (Livewire).
+    Route::get('/doctors', \App\Livewire\Staff\DoctorDirectory::class)->name('doctors.index');
+    Route::get('/cash-register', \App\Livewire\Billing\CashRegisterScreen::class)->name('cash-register.index');
+    Route::get('/expenses', \App\Livewire\Billing\ExpenseTracker::class)->name('expenses.index');
+    Route::get('/treatment-catalog', \App\Livewire\Treatments\TreatmentCatalog::class)->name('treatment-catalog.index');
+    Route::get('/ipd/configuration', \App\Livewire\IPD\IpdConfiguration::class)->name('ipd.configuration');
+    Route::get('/teleconsultations', \App\Livewire\Telemedicine\TeleconsultationBoard::class)->name('teleconsultations.index');
+
     Route::get('/documents/stream/{path}', function (string $path) {
         $decoded = base64_decode($path, true);
         if ($decoded === false) {

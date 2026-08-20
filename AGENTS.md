@@ -442,3 +442,16 @@ Self-service onboarding (review Phase 2). Suite now **663 pass / 1805 assertions
 - Login page now links to `/signup` ("Start your free trial").
 - **Livewire test gotcha**: `assertSee("let's")` fails because Blade HTML-escapes `'` → `&#039;` — assert unquoted substrings.
 - Tests: `ClinicSignupTest` (6), `ClinicSetupWizardTest` (7). Note: setup-wizard tests must set `app(TenantContext::class)->set($tenant->id)` before Livewire::actingAs calls that reach tenant-scoped services (DoctorService::onboard reads context, not auth user).
+
+## Clinic operator UI — Phase 3 (COMPLETED)
+
+Six Livewire operator screens closing the "backend far ahead of frontend" gap (review Phase 3). Suite now **684 pass / 1837 assertions**.
+
+- **`Livewire/Staff/DoctorDirectory`** (GET `/doctors`, guard `staff.manage`) — directory w/ onboard + profile edit + day-of-week schedule grid (per-day enabled toggle, start/end, break start/end → `DoctorService::setAvailability`) + leave entry. **Cross-tenant leak fix**: `User` has NO global scope; `User::role('DOCTOR')` lists leaked all clinics in BOTH the screen and `GET /api/v1/doctors` (via `DoctorService::listDoctors()/find()`). Now filtered by TenantContext in the service (null context = Super Admin, intentionally global) and by `auth()->user()->tenant_id` in the component. Regression test: `test_doctors_api_listing_is_tenant_scoped`.
+- **`Livewire/Treatments/TreatmentCatalog`** (GET `/treatment-catalog`, guard `treatments.manage`) — services + rooms tabs; add/toggle/delete against `TreatmentCatalogService`.
+- **`Livewire/IPD/IpdConfiguration`** (GET `/ipd/configuration`, guard `ipd.configure`) — accordion hierarchy wards→rooms→beds with inline delete; delete guards' ValidationException caught → friendly flash.
+- **`Livewire/Billing/CashRegisterScreen`** (GET `/cash-register`, guard `cash_register.manage`) — open drawer (name + float), per-register ledger view (entries + computed balance via `CashRegisterService::balance()`), adjustments, close with counted cash → shows expected/variance; friendly errors for double-open/close.
+- **`Livewire/Billing/ExpenseTracker`** (GET `/expenses`, guard `billing.view`) — list + add + category filter; duplicates ExpenseService's private CATEGORIES/METHODS lists as public consts.
+- **`Livewire/Telemedicine/TeleconsultationBoard`** (GET `/teleconsultations`, guard `appointments.create`) — schedule (patient autocomplete) + start/end/cancel/no-show + meeting_url join link. **Gotcha**: `Teleconsultation` relation is `doctor()` not `user()`, and start() produces status `STARTED` (not IN_PROGRESS).
+- Sidebar grows: Doctors, Teleconsult, Catalogue, IPD Config, Cash Register, Expenses.
+- Tests: `DoctorDirectoryTest` (8), `CatalogAndConfigTest` (6), `BillingScreensTest` (5), `TeleconsultationBoardTest` (2). +21.
