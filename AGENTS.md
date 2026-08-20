@@ -415,4 +415,6 @@ Suite now **618 pass / 1681 assertions**.
 - **Counter table for SequentialNumber (#4)** — new `sequence_counters` table (scope string UNIQUE, next_value bigint) + `App\Models\SequenceCounter::lockFor($scope, callable $initializer)/consume()` (global by design, NOT BelongsToTenant; unique-index race-safe creation). `SequentialNumber::next($table, $prefix, $numberColumn)` scope = `"{$table}.{$numberColumn}:{$prefix}"`; initializes from existing numeric-tail MAX (PHP-computed, portable); existence-check loop retained as backstop. Same row-lock mechanism as `TokenSequence`. Regression test: `test_next_is_backed_by_a_dedicated_counter_row`.
 - **PatientUid fallback on counter (#5)** — `PatientUidService::generateSequential()` uses `SequenceCounter` scope `patients.k360_uid:K360-P` instead of `max('id')+1`.
 
+- **Post-review tightening**: `WebhookProcessor::process()` now REQUIRES `string $rawBody` (non-nullable) — no accidental re-encoded-JSON verification path remains. Tests pass `(string) json_encode($payload)` explicitly.
+
 **Remaining in review's ordered list (future phases)**: Super Admin control plane, tenant onboarding UI, Billing/Cash-Register UI, Doctor availability UI, Treatment/IPD UI, Documents OCR UI, Teleconsultation UI, AI Scribe, DB-backed RBAC, MySQL 8 integration testing, queue/scheduler ops docs, pentest/adversarial pass.

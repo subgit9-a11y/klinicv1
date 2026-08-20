@@ -227,7 +227,7 @@ class CashfreeIntegrationTest extends TestCase
 
         // WebhookProcessor will verify with the gateway (HTTP mocked to fail
         // is fine — duplicate detection happens first).
-        $result = app(WebhookProcessor::class)->process($payload, 'invalid-signature');
+        $result = app(WebhookProcessor::class)->process($payload, 'invalid-signature', (string) json_encode($payload));
 
         $this->assertFalse($result['processed']);
         $this->assertSame('Duplicate event already processed', $result['message']);
@@ -250,7 +250,7 @@ class CashfreeIntegrationTest extends TestCase
             'type' => 'PAYMENT_FAILED_WEBHOOK',
             'data' => ['order' => ['order_id' => 'ORD-X'], 'payment' => ['cf_payment_id' => 'PAY-1']],
         ];
-        $r1 = app(WebhookProcessor::class)->process($failedPayload, 'invalid-signature');
+        $r1 = app(WebhookProcessor::class)->process($failedPayload, 'invalid-signature', (string) json_encode($failedPayload));
         $this->assertFalse($r1['processed']); // not verified (gateway down) → no payment recorded
 
         // Success attempt on the SAME order but a DIFFERENT payment id.
@@ -258,7 +258,7 @@ class CashfreeIntegrationTest extends TestCase
             'type' => 'PAYMENT_SUCCESS_WEBHOOK',
             'data' => ['order' => ['order_id' => 'ORD-X'], 'payment' => ['cf_payment_id' => 'PAY-2']],
         ];
-        $r2 = app(WebhookProcessor::class)->process($successPayload, 'invalid-signature');
+        $r2 = app(WebhookProcessor::class)->process($successPayload, 'invalid-signature', (string) json_encode($successPayload));
 
         // The success event must NOT be skipped as a duplicate of the failed
         // event — the two have distinct composite keys.
@@ -275,7 +275,7 @@ class CashfreeIntegrationTest extends TestCase
         $payload = ['type' => 'PAYMENT_SUCCESS_WEBHOOK', 'data' => ['order' => ['order_id' => 'evt-002']]];
 
         // Signature will be invalid → stored but not processed.
-        $result = app(WebhookProcessor::class)->process($payload, 'invalid-signature');
+        $result = app(WebhookProcessor::class)->process($payload, 'invalid-signature', (string) json_encode($payload));
 
         $this->assertFalse($result['processed']);
         $this->assertSame('Signature verification failed', $result['message']);
@@ -295,7 +295,7 @@ class CashfreeIntegrationTest extends TestCase
 
         $payload = ['type' => 'PAYMENT_SUCCESS_WEBHOOK'];
 
-        $result = app(WebhookProcessor::class)->process($payload, 'sig');
+        $result = app(WebhookProcessor::class)->process($payload, 'sig', (string) json_encode($payload));
 
         $this->assertFalse($result['processed']);
         $this->assertSame('Missing event/order ID', $result['message']);

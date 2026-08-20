@@ -130,7 +130,7 @@ class OnlineBookingPaymentTest extends TestCase
             ],
         ];
 
-        $outcome = app(WebhookProcessor::class)->process($payload, 'valid-sig');
+        $outcome = app(WebhookProcessor::class)->process($payload, 'valid-sig', (string) json_encode($payload));
 
         $this->assertTrue($outcome['processed']);
         $this->assertSame('CONFIRMED', $appointment->fresh()->status);
@@ -167,7 +167,7 @@ class OnlineBookingPaymentTest extends TestCase
             ],
         ];
 
-        $outcome = app(WebhookProcessor::class)->process($payload, 'sig');
+        $outcome = app(WebhookProcessor::class)->process($payload, 'sig', (string) json_encode($payload));
 
         $this->assertFalse($outcome['processed']);
         // Appointment stays SCHEDULED — payment was NOT verified.
@@ -324,7 +324,7 @@ class OnlineBookingPaymentTest extends TestCase
             ],
         ];
 
-        $outcome = app(WebhookProcessor::class)->process($payload, 'valid-sig');
+        $outcome = app(WebhookProcessor::class)->process($payload, 'valid-sig', (string) json_encode($payload));
 
         $this->assertSame(422, $outcome['status']);
         $this->assertFalse($outcome['processed']);
@@ -350,13 +350,14 @@ class OnlineBookingPaymentTest extends TestCase
 
         $this->swapCashfreeProvider('K360-ORD-PAID-001', (int) $invoice->total_cents);
 
-        $outcome = app(WebhookProcessor::class)->process([
+        $payload = [
             'type' => 'PAYMENT_SUCCESS_WEBHOOK',
             'data' => [
                 'order' => ['order_id' => 'K360-ORD-PAID-001'],
                 'payment' => ['cf_payment_id' => 'cf-pay-paid-001'],
             ],
-        ], 'valid-sig');
+        ];
+        $outcome = app(WebhookProcessor::class)->process($payload, 'valid-sig', (string) json_encode($payload));
 
         $this->assertTrue($outcome['processed']);
         $this->assertSame(200, $outcome['status']);
@@ -367,13 +368,14 @@ class OnlineBookingPaymentTest extends TestCase
     {
         $this->swapCashfreeProvider('K360-ORD-GHOST', 49900);
 
-        $outcome = app(WebhookProcessor::class)->process([
+        $payload = [
             'type' => 'PAYMENT_SUCCESS_WEBHOOK',
             'data' => [
                 'order' => ['order_id' => 'K360-ORD-GHOST'],
                 'payment' => ['cf_payment_id' => 'cf-pay-ghost'],
             ],
-        ], 'valid-sig');
+        ];
+        $outcome = app(WebhookProcessor::class)->process($payload, 'valid-sig', (string) json_encode($payload));
 
         $this->assertSame(404, $outcome['status']);
         $this->assertFalse($outcome['processed']);
@@ -400,13 +402,14 @@ class OnlineBookingPaymentTest extends TestCase
 
         $this->swapCashfreeProvider('K360-ORD-FAIL-001', null, verified: false);
 
-        $outcome = app(WebhookProcessor::class)->process([
+        $payload = [
             'type' => 'PAYMENT_FAILED_WEBHOOK',
             'data' => [
                 'order' => ['order_id' => 'K360-ORD-FAIL-001'],
                 'payment' => ['cf_payment_id' => 'cf-pay-fail-001'],
             ],
-        ], 'valid-sig');
+        ];
+        $outcome = app(WebhookProcessor::class)->process($payload, 'valid-sig', (string) json_encode($payload));
 
         $this->assertSame(422, $outcome['status']);
         $this->assertSame('FAILED', \App\Models\PaymentOrder::where('gateway_order_id', 'K360-ORD-FAIL-001')->value('status'));
