@@ -482,3 +482,14 @@ Bugs the MySQL run caught (all fixed):
 - **TIME column format divergence** — MySQL returns `'HH:MM:SS'`, SQLite `'HH:MM'`. Normalized at the `Appointment` model via `getStartTimeAttribute`/`getEndTimeAttribute` accessors (substr 0,5) so service slot-overlap string comparisons and API resources are driver-correct. `AppointmentResource` additionally normalizes explicitly.
 - **Test fixes**: AI approve test hardcoded `approved_by=1` (MySQL enforces the FK, sqlite didn't) — now uses a real user; `SqlHelperTest` driver assertion is driver-agnostic.
 - Migration files are NOT atomic on MySQL (DDL implicit commits) — a failed migration leaves partial tables; drop the DB and re-run when iterating.
+
+## Queue & scheduler operations — Phase 7 (COMPLETED)
+
+Production background-process validation (review Phase 7). Suite now **702 pass / 1879 assertions**.
+
+- **`docs/QUEUE_OPERATIONS.md`** — ops runbook: which background processes run (queue worker for `SendNotificationJob`/`ProcessDocumentOcr`; scheduler for 7 registered commands), systemd + cPanel-cron deployment, failed-job recovery (`queue:failed/retry/flush` + the `SendNotificationJob::failed()` → RetryNotifications loop), restart-after-deploy, and a 6-step pre-launch verification checklist.
+- **`ProcessDocumentOcr`**: added `timeout=120` + `backoff=30` (was only tries=3) — large OCR payloads get room to run.
+- **Operational proofs** (`tests/Feature/Queue/`):
+  - `QueueOperationsTest` (3): database-queue dispatch → real `queue:work` run → jobs table empties AND the effect lands (in-app notification SENT for the patient; OCR text stamped on the document via worker tenant isolation). **Learning**: `SendNotificationJob::handle()` re-calls `NotificationService::sendOnChannel` which creates a NEW delivery (the job's role is retrying external channels); asserting on the original delivery's status is wrong — assert a SENT delivery exists for the notifiable. `assertDatabaseHas` can't LIKE-match — use the query builder.
+  - `SchedulerRunTest` (2): `schedule:run` exits 0 on a fresh DB (scheduler actually executes every registered command), `schedule:list` contains all 7 `klinic:*` commands. **Gotcha**: commands are namespaced `klinic:*` (e.g. `klinic:send-appointment-reminders`), not bare.
+- phpunit test env runs `QUEUE_CONNECTION=sync`; the ops tests override `queue.default=database` in setUp to prove the real driver path.

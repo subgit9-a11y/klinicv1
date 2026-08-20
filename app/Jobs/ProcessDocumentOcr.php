@@ -24,6 +24,11 @@ class ProcessDocumentOcr implements ShouldQueue
 
     public int $tries = 3;
 
+    /** Long enough for large OCR payloads; synchronized between retries. */
+    public int $timeout = 120;
+
+    public int $backoff = 30;
+
     public function __construct(public readonly int $documentId) {}
 
     public function handle(OcrService $ocr): void
