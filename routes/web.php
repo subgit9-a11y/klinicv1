@@ -111,7 +111,15 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
     })->where('path', '[^/]+')->name('documents.stream')->withoutMiddleware(['auth', '2fa']);
 });
 
+// Public self-service clinic onboarding (guest only, throttled).
+Route::get('/signup', \App\Livewire\Onboarding\ClinicSignup::class)
+    ->name('onboarding.signup')
+    ->middleware(['guest', 'throttle:6,1']);
+
 Route::middleware(['auth', 'active', 'verified', '2fa'])->group(function () {
+    Route::get('/onboarding/setup', \App\Livewire\Onboarding\ClinicSetupWizard::class)
+        ->name('onboarding.setup');
+
     Route::get('/super-admin/configuration', ConfigurationPanel::class)
         ->name('super-admin.configuration');
     Route::get('/super-admin/tenants', \App\Livewire\SuperAdmin\TenantManagement::class)

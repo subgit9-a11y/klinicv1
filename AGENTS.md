@@ -432,3 +432,13 @@ First slice of the Super Admin product layer (review Phase 1). Suite now **650 p
 - **Livewire gotcha**: `Livewire\Component` already defines a PUBLIC `authorize()` — a private/protected `authorize()` helper in a component is a fatal "access level" error. Use a differently-named guard (`guardSuperAdmin()`).
 - Tests: `TenantManagementTest` (8), `UserManagementTest` (6), `SubscriptionManagementTest` (5), `IntegrationStatusTest` (3), `OperationsCenterTest` (5), `TenantSuspensionTest` (5). Total +32.
 - **Still future phases**: clinic self-onboarding wizard, per-tenant usage metrics drill-down, integrations EDIT (credentials UI), AI governance credentials/prompt-limits UI, notification template editor UI.
+
+## Clinic onboarding — Phase 2 (COMPLETED)
+
+Self-service onboarding (review Phase 2). Suite now **663 pass / 1805 assertions**.
+
+- **`App\Livewire\Onboarding\ClinicSignup`** (`GET /signup`, guest + `throttle:6,1`, guest layout) — 3-step wizard: clinic details → plan selection (cards from `Plan::where('is_active')`) → owner account (password confirmed, unique email). `submit()` runs `TenantAdminService::createClinic()` (tenant TRIAL + 14-day trial + CLINIC_OWNER + ACTIVE trial subscription, all one transaction), then `Auth::login($owner)` → redirect `onboarding.setup`. Step-level validation via a `validateStep(n)` match; Livewire `wire:click="submit"` etc.
+- **`App\Livewire\Onboarding\ClinicSetupWizard`** (`GET /onboarding/setup`, auth, mount-abort unless `isClinicOwner()`) — 4 steps: clinic profile (via `TenantAdminService::update` — same service Super Admin uses), add doctor (`DoctorService::onboard`), add treatment service (`TreatmentCatalogService::createService`, price entered in ₹ → `*100` cents), add IPD ward (`IpdConfigurationService::createWard`). Every step is skippable (`skipStep`); finish → dashboard. Reuses existing services so wizard data is identical to admin-created data.
+- Login page now links to `/signup` ("Start your free trial").
+- **Livewire test gotcha**: `assertSee("let's")` fails because Blade HTML-escapes `'` → `&#039;` — assert unquoted substrings.
+- Tests: `ClinicSignupTest` (6), `ClinicSetupWizardTest` (7). Note: setup-wizard tests must set `app(TenantContext::class)->set($tenant->id)` before Livewire::actingAs calls that reach tenant-scoped services (DoctorService::onboard reads context, not auth user).

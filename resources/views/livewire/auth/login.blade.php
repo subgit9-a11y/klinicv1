@@ -32,6 +32,9 @@
         <a href="{{ route('password.request') }}" class="text-sm text-brand-600 hover:text-brand-700">
             {{ __('klinic360.auth.forgot_password') }}
         </a>
+        <p class="mt-4 text-center text-sm text-gray-500">
+            New to Klinic 360? <a href="{{ route('onboarding.signup') }}" class="text-brand-600 hover:text-brand-700 font-medium">Start your free trial</a>
+        </p>
     </div>
 
     <button type="submit"
