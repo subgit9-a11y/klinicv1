@@ -32,6 +32,11 @@ class Subscription extends Model
         return $this->belongsTo(Plan::class);
     }
 
+    public function tenant(): BelongsTo
+    {
+        return $this->belongsTo(Tenant::class);
+    }
+
     public function events(): HasMany
     {
         return $this->hasMany(SubscriptionEvent::class);

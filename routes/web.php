@@ -114,6 +114,16 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
 Route::middleware(['auth', 'active', 'verified', '2fa'])->group(function () {
     Route::get('/super-admin/configuration', ConfigurationPanel::class)
         ->name('super-admin.configuration');
+    Route::get('/super-admin/tenants', \App\Livewire\SuperAdmin\TenantManagement::class)
+        ->name('super-admin.tenants');
+    Route::get('/super-admin/users', \App\Livewire\SuperAdmin\UserManagement::class)
+        ->name('super-admin.users');
+    Route::get('/super-admin/subscriptions', \App\Livewire\SuperAdmin\SubscriptionManagement::class)
+        ->name('super-admin.subscriptions');
+    Route::get('/super-admin/integrations', \App\Livewire\SuperAdmin\IntegrationStatus::class)
+        ->name('super-admin.integrations');
+    Route::get('/super-admin/operations', \App\Livewire\SuperAdmin\OperationsCenter::class)
+        ->name('super-admin.operations');
 });
 
 require __DIR__.'/auth.php';

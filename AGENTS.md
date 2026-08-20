@@ -418,3 +418,17 @@ Suite now **618 pass / 1681 assertions**.
 - **Post-review tightening**: `WebhookProcessor::process()` now REQUIRES `string $rawBody` (non-nullable) — no accidental re-encoded-JSON verification path remains. Tests pass `(string) json_encode($payload)` explicitly.
 
 **Remaining in review's ordered list (future phases)**: Super Admin control plane, tenant onboarding UI, Billing/Cash-Register UI, Doctor availability UI, Treatment/IPD UI, Documents OCR UI, Teleconsultation UI, AI Scribe, DB-backed RBAC, MySQL 8 integration testing, queue/scheduler ops docs, pentest/adversarial pass.
+
+## Super Admin control plane — Phase 1 (COMPLETED)
+
+First slice of the Super Admin product layer (review Phase 1). Suite now **650 pass / 1753 assertions**.
+
+- **`app/Services/Tenancy/TenantAdminService.php`** — `createClinic()` (tenant + optional CLINIC_OWNER user + trial subscription via `PlanService::activate`, all in one transaction, auto unique slug, audit `tenant.created`), `update()`, `suspend()` (status=SUSPENDED + suspended_at), `activate()` (status=ACTIVE, clears suspended_at), `archive()` (status=ARCHIVED + soft delete). All audit-logged.
+- **Tenant suspension is now ENFORCED** (was cosmetic): `EnsureAccountIsActive` (web) signs out users whose tenant is SUSPENDED or archived (null relation = soft-deleted); `AuthenticateApiToken` returns 403 `"Clinic is suspended."` for their tokens. Super Admin (tenant_id null) unaffected. Lang key `klinic360.auth.tenant_suspended`.
+- **Livewire screens** (`app/Livewire/SuperAdmin/`): `TenantManagement` (list + users/patients counts, search, status filter, create w/ optional owner, edit, suspend/activate/archive with wire:confirm), `UserManagement` (cross-tenant users: create for any clinic, edit role/tenant, enable/disable; self-disable of own SUPER_ADMIN account refused), `SubscriptionManagement` (list w/ tenant+plan, activate/replace via PlanService::activate, cancel w/ required reason), `IntegrationStatus` (read-only configured yes/no cards for Cashfree, Gemini, WhatsApp, SMS, Email, Google Meet, OCR, Speech, S3 — shows env var NAMES, never secrets), `OperationsCenter` (tabs: audit trail / webhooks / notification deliveries / payment orders; search + tenant filter; read-only).
+- **Routes**: `/super-admin/tenants|users|subscriptions|integrations|operations` (existing `/super-admin/configuration` kept). Components self-guard in `render()` via `abort_unless(...->isSuperAdmin(), 403)`.
+- **Sidebar**: Super Admin section (`@if(isSuperAdmin())`) with the six screens.
+- **`Subscription::tenant()` relation added** (was missing; needed for the subscriptions list).
+- **Livewire gotcha**: `Livewire\Component` already defines a PUBLIC `authorize()` — a private/protected `authorize()` helper in a component is a fatal "access level" error. Use a differently-named guard (`guardSuperAdmin()`).
+- Tests: `TenantManagementTest` (8), `UserManagementTest` (6), `SubscriptionManagementTest` (5), `IntegrationStatusTest` (3), `OperationsCenterTest` (5), `TenantSuspensionTest` (5). Total +32.
+- **Still future phases**: clinic self-onboarding wizard, per-tenant usage metrics drill-down, integrations EDIT (credentials UI), AI governance credentials/prompt-limits UI, notification template editor UI.

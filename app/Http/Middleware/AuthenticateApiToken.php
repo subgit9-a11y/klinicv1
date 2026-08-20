@@ -46,6 +46,12 @@ class AuthenticateApiToken
             return response()->json(['message' => 'Unauthenticated.'], 401);
         }
 
+        // Suspended/archived tenant: tokens are unusable until re-activated.
+        // A null relation means the tenant row was archived (soft delete).
+        if ($user->tenant_id !== null && ($user->tenant === null || $user->tenant->status === 'SUSPENDED')) {
+            return response()->json(['message' => 'Clinic is suspended.'], 403);
+        }
+
         auth()->setUser($user);
         $request->attributes->set('api_token', $apiToken);
 

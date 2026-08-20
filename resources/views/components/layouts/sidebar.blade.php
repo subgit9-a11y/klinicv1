@@ -17,6 +17,14 @@
         ['route' => 'ai.board', 'label' => 'AI Board', 'icon' => '⚖'],
         ['route' => 'settings.index', 'label' => __('klinic360.nav.settings'), 'icon' => 'S'],
     ];
+    $adminNav = [
+        ['route' => 'super-admin.tenants', 'label' => 'Clinics', 'icon' => '🏥'],
+        ['route' => 'super-admin.users', 'label' => 'Users', 'icon' => '👤'],
+        ['route' => 'super-admin.subscriptions', 'label' => 'Subscriptions', 'icon' => '💳'],
+        ['route' => 'super-admin.integrations', 'label' => 'Integrations', 'icon' => '🔌'],
+        ['route' => 'super-admin.operations', 'label' => 'Operations', 'icon' => '📊'],
+        ['route' => 'super-admin.configuration', 'label' => 'Configuration', 'icon' => '⚙'],
+    ];
 @endphp
 
 <div class="flex flex-col h-full">
@@ -37,6 +45,22 @@
                 </a>
             @endif
         @endforeach
+
+        @if(auth()->check() && auth()->user()->isSuperAdmin())
+            <div class="pt-4 mt-4 border-t border-brand-600">
+                <div class="px-3 pb-1 text-xs font-semibold uppercase tracking-wide text-brand-200">Super Admin</div>
+                @foreach($adminNav as $item)
+                    @php $active = request()->routeIs($item['route']); @endphp
+                    @if(\Illuminate\Support\Facades\Route::has($item['route']))
+                        <a href="{{ route($item['route']) }}"
+                           class="flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition {{ $active ? 'bg-brand-800 text-white' : 'text-brand-50 hover:bg-brand-600' }}">
+                            <span class="w-6 text-center text-xs font-mono">{{ $item['icon'] }}</span>
+                            <span>{{ $item['label'] }}</span>
+                        </a>
+                    @endif
+                @endforeach
+            </div>
+        @endif
     </nav>
     <div class="px-3 py-4 border-t border-brand-600">
         @auth

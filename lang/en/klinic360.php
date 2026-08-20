@@ -65,6 +65,7 @@ return [
     'auth.failed' => 'These credentials do not match our records.',
     'auth.throttle' => 'Too many login attempts. Please try again in :seconds seconds.',
     'auth.account_disabled' => 'This account has been disabled. Contact your administrator.',
+    'auth.tenant_suspended' => 'This clinic has been suspended. Contact support.',
     'auth.logout' => 'Log out',
     'auth.enabled' => 'Enabled',
     'auth.disabled' => 'Disabled',
