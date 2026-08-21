@@ -29,7 +29,7 @@ class SchedulerRunTest extends TestCase
         Artisan::call('schedule:list');
         $output = Artisan::output();
 
-        foreach (['klinic:send-appointment-reminders', 'klinic:send-treatment-reminders', 'klinic:send-followup-reminders', 'klinic:retry-notifications', 'klinic:check-subscriptions', 'klinic:reconcile-payments', 'klinic:cleanup'] as $command) {
+        foreach (['klinic:send-appointment-reminders', 'klinic:send-treatment-reminders', 'klinic:send-followup-reminders', 'klinic:retry-notifications', 'klinic:check-subscriptions', 'klinic:reconcile-payments', 'klinic:backup-database', 'klinic:cleanup'] as $command) {
             $this->assertStringContainsString($command, $output, "Missing scheduled command {$command}");
         }
     }

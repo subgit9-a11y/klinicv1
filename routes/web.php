@@ -119,6 +119,10 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
     })->where('path', '[^/]+')->name('documents.stream')->withoutMiddleware(['auth', '2fa']);
 });
 
+// Health probes (unauthenticated) — load balancer / uptime monitor.
+Route::get('/health', [\App\Http\Controllers\HealthController::class, 'health']);
+Route::get('/health/ready', [\App\Http\Controllers\HealthController::class, 'ready']);
+
 // Public self-service clinic onboarding (guest only, throttled).
 Route::get('/signup', \App\Livewire\Onboarding\ClinicSignup::class)
     ->name('onboarding.signup')

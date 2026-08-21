@@ -3,6 +3,7 @@
 use App\Http\Middleware\AuthenticateApiToken;
 use App\Http\Middleware\EnsureAccountIsActive;
 use App\Http\Middleware\RequireRole;
+use App\Http\Middleware\SecurityHeaders;
 use App\Http\Middleware\RequireTwoFactorChallenge;
 use App\Http\Middleware\SetTenantContext;
 use Illuminate\Auth\Middleware\EnsureEmailIsVerified;
@@ -26,6 +27,7 @@ return Application::configure(basePath: dirname(__DIR__))
         // web group ensures the TenantContext singleton is populated after the
         // session middleware has resolved the authenticated user.
         $middleware->web(append: [
+            SecurityHeaders::class,
             SetTenantContext::class,
         ]);
 
@@ -59,6 +61,8 @@ return Application::configure(basePath: dirname(__DIR__))
         $schedule->command('klinic:check-subscriptions')->dailyAt('00:30');
         // Reconcile pending payments against the gateway.
         $schedule->command('klinic:reconcile-payments')->hourly();
+        // Daily database backup to storage/app/backups (30-day retention).
+        $schedule->command('klinic:backup-database')->dailyAt('03:00');
         // Clean up stale/old records (expired tokens, old audit logs per retention).
         $schedule->command('klinic:cleanup')->dailyAt('02:00');
     })

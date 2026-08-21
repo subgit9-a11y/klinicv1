@@ -503,3 +503,13 @@ Dictation→SOAP draft→doctor-edit→approve→write-to-consultation (review P
 - **`Database\Seeders\AiScribeSeeder`** — seeds the `ai_scribe` feature + SOAP-extraction prompt (cyclical: AIManager needs an active prompt, else ERROR) so fresh installs work end-to-end. Wired into DatabaseSeeder.
 - **Seeded-AI gotcha**: production AI drafts require an active prompt version; the seeder together with the feature unlock the one "No active prompt version found" ERROR path in the generate-loop.
 - Tests: `AiScribeTest` (5 service) + `AiScribePanelTest` (3 Livewire: render allowed, 403 receptionist, approve flow).
+
+## Enterprise hardening — production-grade pass (COMPLETED)
+
+Final production-grade items closing the gap to launch. Suite now **714 pass / 1919 assertions**.
+
+- **`SecurityHeaders` middleware** (`app/Http/Middleware/SecurityHeaders.php`, appended to the web group) — X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy (camera/mic/geo off), X-XSS-Protection 0, CSP (`default-src 'self'`, inline script/style for Livewire, no frames/objects). Verified by `ProductionHardeningTest` asserting headers on `/login`.
+- **Health endpoints** (`GET /health` liveness; `GET /health/ready` — DB reachable + `jobs`/`failed_jobs` tables exist, 200 ready / 503 not_ready). Unauthenticated; for load balancers/uptime monitors.
+- **Database backup**: `klinic:backup-database` (mysqldump --single-transaction --routines --triggers | gzip → `storage/app/backups/db-{ts}.sql.gz`, 30-day prune) — aborts loudly on non-mysql drivers (never a silent no-op); scheduled daily at 03:00 (now 8 commands total).
+- **Docs**: `docs/ARCHITECTURE_DECISIONS.md` (auth/DB/queue/AI/payments rationale incl. Firebase/Supabase rejection), `docs/PRODUCTION_CHECKLIST.md` (pre-launch), admin guide operations quick-reference.
+- **Scheduler**: now 8 commands (added backup-database); SchedulerRunTest updated.

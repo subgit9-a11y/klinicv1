@@ -1,3 +1,11 @@
+## Production operations quick reference
+
+- **Health probes**: `GET /health` (liveness) and `GET /health/ready` (DB + queue tables).
+- **Backups**: `klinic:backup-database` (mysqldump → `storage/app/backups/`, 30-day retention) runs daily at 03:00; off-host copy is your responsibility. Test a restore before going live.
+- **Security headers**: applied globally by `SecurityHeaders` middleware (X-Frame-Options DENY, CSP, nosniff, referrer policy, permissions policy).
+- **Pre-launch checklist**: `docs/PRODUCTION_CHECKLIST.md`; **Architecture decisions (auth/DB/queue/AI/payments)**: `docs/ARCHITECTURE_DECISIONS.md`.
+
+---
 # Admin Guide
 
 Operations and administration guide for Klinic 360 — intended for Super Admins and clinic owners. For installation, see [INSTALLATION.md](INSTALLATION.md). For environment variables, see [ENVIRONMENT.md](ENVIRONMENT.md).
