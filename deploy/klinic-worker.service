@@ -1,0 +1,16 @@
+[Unit]
+Description=Klinic 360 queue worker (notifications, OCR jobs)
+After=network.target mariadb.service
+
+[Service]
+User=deploy
+Group=deploy
+WorkingDirectory=/var/www/klinic
+ExecStart=/usr/bin/php /var/www/klinic/artisan queue:work --tries=3 --backoff=10 --max-jobs=500 --max-time=3600
+ExecReload=/bin/kill -USR1 $MAINPID
+Restart=always
+RestartSec=5
+Nice=5
+
+[Install]
+WantedBy=multi-user.target
