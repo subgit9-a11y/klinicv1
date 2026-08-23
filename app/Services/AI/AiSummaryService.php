@@ -68,6 +68,32 @@ class AiSummaryService
     }
 
     /**
+     * Clinical assistant: a free-form doctor question grounded in the patient
+     * chart (recent consultations + active prescriptions). Output stays DRAFT.
+     */
+    public function clinicalAssistant(Patient $patient, string $question): AiRequest
+    {
+        $question = trim($question);
+        if ($question === '') {
+            throw ValidationException::withMessages(['question' => 'Ask a question first.']);
+        }
+        $this->assertSameTenant($patient);
+
+        $consultations = $patient->consultations()->with('prescriptions.items')->latest()->limit(5)->get();
+
+        return $this->ai->generate('clinical_assistant', $patient, [
+            'question' => $question,
+            'patient_name' => $patient->name,
+            'history' => $consultations->map(fn ($c) => implode(' | ', array_filter([
+                $c->created_at?->format('d M Y'),
+                $c->chief_complaint,
+                $c->assessment,
+                $c->prescriptions->isEmpty() ? null : 'Rx: '.$c->prescriptions->map(fn ($rx) => $rx->items->pluck('medicine')->implode(', '))->implode('; '),
+            ])))->implode("\n") ?: 'No prior consultations.',
+        ]);
+    }
+
+    /**
      * Lab summary: interprets structured results + OCR'd report text for an
      * investigation.
      */

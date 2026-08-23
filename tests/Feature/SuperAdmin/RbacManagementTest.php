@@ -33,6 +33,46 @@ class RbacManagementTest extends TestCase
             ->assertSee('Roles');
     }
 
+    public function test_per_user_grant_and_revoke_overrides(): void
+    {
+        $doctor = User::factory()->forTenant(Tenant::factory()->create())->role('DOCTOR')->create();
+
+        Livewire::actingAs($this->admin)
+            ->test(RbacManagement::class)
+            ->call('toggleUserPermission', $doctor->id, 'billing.refund', 'grants')
+            ->call('toggleUserPermission', $doctor->id, 'patients.delete', 'revokes');
+
+        $doctor = $doctor->refresh();
+        $this->assertContains('billing.refund', $doctor->permissions['grants'] ?? []);
+        $this->assertContains('patients.delete', $doctor->permissions['revokes'] ?? []);
+
+        $perms = app(\App\Services\Auth\PermissionService::class);
+        $this->assertTrue($perms->can($doctor, 'billing.refund'));
+        $this->assertFalse($perms->can($doctor, 'patients.delete'));
+    }
+
+    public function test_toggle_user_permission_reverses(): void
+    {
+        $user = User::factory()->forTenant(Tenant::factory()->create())->role('RECEPTIONIST')->create();
+
+        Livewire::actingAs($this->admin)
+            ->test(RbacManagement::class)
+            ->call('toggleUserPermission', $user->id, 'ai.use', 'grants')
+            ->call('toggleUserPermission', $user->id, 'ai.use', 'grants');
+
+        $this->assertNotContains('ai.use', $user->refresh()->permissions['grants'] ?? []);
+    }
+
+    public function test_toggle_user_permission_rejects_bad_kind(): void
+    {
+        $user = User::factory()->forTenant(Tenant::factory()->create())->role('DOCTOR')->create();
+
+        Livewire::actingAs($this->admin)
+            ->test(RbacManagement::class)
+            ->call('toggleUserPermission', $user->id, 'ai.use', 'hacked')
+            ->assertStatus(422);
+    }
+
     public function test_non_super_admin_gets_403(): void
     {
         $owner = User::factory()->forTenant(Tenant::factory()->create())->role('CLINIC_OWNER')->create();

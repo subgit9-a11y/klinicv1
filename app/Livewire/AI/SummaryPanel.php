@@ -31,6 +31,9 @@ class SummaryPanel extends Component
     /** @var array<string, string> feature key => button label */
     public array $features = [];
 
+    /** Free-form question used by the clinical_assistant feature. */
+    public string $question = '';
+
     public ?int $generatedId = null;
 
     public function mount(string $contextType, int $contextId, array $features): void
@@ -45,11 +48,16 @@ class SummaryPanel extends Component
         $this->guard();
         abort_unless(isset($this->features[$featureKey]), 404);
 
+        if ($featureKey === 'clinical_assistant') {
+            $this->validate(['question' => ['required', 'string', 'max:1000']]);
+        }
+
         $context = $this->resolveContext();
 
         $request = match ($featureKey) {
             'patient_summary' => $summaries->summarizePatient($context),
             'followup_assistant' => $summaries->followupAssistant($context),
+            'clinical_assistant' => $summaries->clinicalAssistant($context, $this->question),
             'lab_summary' => $summaries->summarizeInvestigation($context),
             'document_summary' => $summaries->summarizeDocument($context),
             'treatment_summary' => $summaries->summarizeTreatmentPlan($context),

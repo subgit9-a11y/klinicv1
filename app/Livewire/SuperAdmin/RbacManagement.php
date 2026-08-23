@@ -169,6 +169,30 @@ class RbacManagement extends Component
         $perms->flush($user);
     }
 
+    /**
+     * Per-user override toggle: $kind is 'grants' (explicit allow) or
+     * 'revokes' (explicit deny) on the user.permissions JSON catalog.
+     */
+    public function toggleUserPermission(int $userId, string $permissionKey, string $kind, PermissionService $perms): void
+    {
+        $this->guard();
+        abort_unless(in_array($kind, ['grants', 'revokes'], true), 422);
+
+        $user = User::findOrFail($userId);
+        $overrides = $user->permissions ?? [];
+
+        $list = collect($overrides[$kind] ?? []);
+        $overrides[$kind] = $list->contains($permissionKey)
+            ? $list->reject(fn ($key) => $key === $permissionKey)->values()->all()
+            : $list->push($permissionKey)->values()->all();
+
+        $user->permissions = $overrides;
+        $user->save();
+
+        $perms->flush($user);
+        session()->flash('message', "User override saved ({$kind}: {$permissionKey}).");
+    }
+
     // --- Sync ---
 
     public function syncFromCode(RbacService $rbac, PermissionService $perms): void

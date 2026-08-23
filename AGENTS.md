@@ -522,4 +522,12 @@ Final production-grade items closing the gap to launch. Suite now **714 pass / 1
 - **Tenant usage drill-down** — `TenantManagement::viewUsage()` panel with DB::table counts scoped by `tenant_id`.
 - **Public booking status page** (`/book/status`, rate-limited 20/min) + `/book/done` landing. Lookup requires reference + phone (last-10-digit match normalizes +91 prefixes) scoped to the resolved booking tenant.
 - **Edit tooling**: Livewire catch of `ValidationException` should `addError` not `session()->flash` — `assertSessionHas` is unreliable in Livewire tests.
-- Audit test extended with `/settings/clinic` + `/notification-templates`. Suite now 784 pass / 2109 assertions. FileEditor `str_replace` broken this session — used python3 one-liners / insert instead.
+- Audit test extended with `/settings/clinic` + `/notification-templates`. Suite was 784 pass / 2109 assertions before the final wave below.
+
+## Final backlog wave (COMPLETED)
+
+- **Integration accounts** (`App\Services\Integrations\IntegrationAccountService`) — provider→config map (cashfree/gemini/whatsapp/msg91/resend/google_meet/google_vision); each credential value Crypt-encrypted inside the JSON column, UI shows last-4 masked. Active **global** (tenant_id null) accounts override `services.*` config in `AppServiceProvider::boot()` (Schema::hasTable + try/catch guarded). Tenant accounts resolve via `credentialsFor(provider, tenantId)`. Managed from `/super-admin/integrations` "Managed accounts". Rotate = re-enter; blanks keep old value.
+- **Clinical Assistant** — `AiSummaryService::clinicalAssistant(Patient, question)` + seeded `clinical_assistant` feature/prompt; SummaryPanel gains `$question` (validated required on that feature) and Patient 360 exposes it. Requires DOCTOR/CLINIC_OWNER `ai.use`; output stays DRAFT.
+- **Per-user RBAC overrides UI** — `RbacManagement::toggleUserPermission($userId, key, 'grants'|'revokes')` writes `users.permissions` JSON + flushes `PermissionService`; Allow/Deny matrix under "User roles" tab. Gotcha: PHPUnit 12 uses `assertNotContains`, NOT `assertDoesntContain`.
+- **Security sweep** (`tests/Feature/Security/SecurityAdversarialTest`) — XSS escape, SQLi literal, IDOR cross-tenant 404, super-admin section guards, /book/status rate-limit, secret non-exposure, tenant force-stamp on model create.
+- Suite now **812 pass / 2193 assertions** (SQLite green; boot override verified).

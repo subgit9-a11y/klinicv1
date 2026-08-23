@@ -119,6 +119,15 @@ Templates use `{{variable}}` placeholders (e.g. `{{patient_name}}`, `{{doctor_na
 - **Public booking status** (`/book/status`) — guests can check an online
   booking by reference + phone (last-10-digit match, scoped to the booking
   tenant, rate-limited 20/min). Cashfree returns users to `/book/done`.
+- **Integration accounts** (`/super-admin/integrations` → Managed accounts) —
+  DB-stored provider credentials (individually Crypt-encrypted, write-only,
+  last-4 masked previews) global or per-clinic. Active global accounts override
+  env config at boot. Rotate keys by re-entering; blank fields keep old values.
+- **Clinical Assistant** (patient chart → AI summaries panel) — free-form
+  question answered from recent consultations/prescriptions. Output stays DRAFT
+  until a practitioner approves it.
+- **Per-user RBAC overrides** (`/super-admin/rbac` → User roles) — after
+  selecting a user, Allow/Deny individual permissions on top of role grants.
 
 ## 8. Financial operations
 

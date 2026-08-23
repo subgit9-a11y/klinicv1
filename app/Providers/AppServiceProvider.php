@@ -166,6 +166,17 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // DB-backed integration accounts (active, global scope) override the
+        // env-based services.* config — providers read config at construction.
+        // Guarded so a fresh install (no table yet) still boots.
+        try {
+            if (\Illuminate\Support\Facades\Schema::hasTable('integration_accounts')) {
+                app(\App\Services\Integrations\IntegrationAccountService::class)->applyToConfig();
+            }
+        } catch (\Throwable) {
+            // DB unreachable at boot (e.g. migrations in flight) — env config stays.
+        }
+
         // The App\Livewire\AI namespace kebab-cases to a-i.* — register
         // friendlier aliases for blade mounting.
         \Livewire\Livewire::component('ai.summary-panel', \App\Livewire\AI\SummaryPanel::class);

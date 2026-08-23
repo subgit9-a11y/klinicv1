@@ -30,6 +30,12 @@ class AiSummarySeeder extends Seeder
             'system' => 'You are a clinical follow-up planner. Suggest a practical follow-up schedule and what to review at each visit. Only use the provided context; mark suggestions as drafts for the treating doctor.',
             'template' => "Patient: {{patient_name}}\nLast consultation: {{last_consultation}}\nExisting follow-ups:\n{{followups}}\n\nPropose a follow-up plan (what to review, suggested intervals, red flags to watch).",
         ],
+        'clinical_assistant' => [
+            'name' => 'Clinical Assistant',
+            'description' => 'Free-form doctor question answered from the patient chart (draft-only output).',
+            'system' => 'You are a clinical decision-support assistant for Ayurveda/Siddha/Homeopathy clinics. Answer from the provided chart context only; be concise; explicitly flag uncertainty. Never invent findings and never present output as final medical advice — the treating doctor decides.',
+            'template' => "Doctor question: {{question}}\n\nPatient: {{patient_name}}\nRecent chart context:\n{{history}}\n\nAnswer the question concisely, referencing the chart context. End with a one-line disclaimer.",
+        ],
         'lab_summary' => [
             'name' => 'Lab Summary',
             'description' => 'Interprets structured investigation results and OCR report text.',

@@ -22,6 +22,56 @@ use Livewire\Component;
  */
 class IntegrationStatus extends Component
 {
+    public string $accountProvider = 'cashfree';
+
+    public ?int $accountTenantId = null;
+
+    public string $accountName = '';
+
+    /** @var array<string, string> */
+    public array $credentials = [];
+
+    public function saveAccount(\App\Services\Integrations\IntegrationAccountService $accounts): void
+    {
+        abort_unless(auth()->check() && auth()->user()->isSuperAdmin(), 403);
+
+        $this->validate([
+            'accountProvider' => ['required', 'in:'.implode(',', array_keys(\App\Services\Integrations\IntegrationAccountService::PROVIDERS))],
+            'accountTenantId' => ['nullable', 'integer', 'exists:tenants,id'],
+            'credentials' => ['required', 'array', 'min:1'],
+            'credentials.*' => ['nullable', 'string', 'max:2000'],
+        ]);
+
+        try {
+            $accounts->upsert(
+                $this->accountProvider,
+                $this->credentials,
+                $this->accountTenantId,
+                $this->accountName !== '' ? $this->accountName : null,
+            );
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            $this->addError('credentials', $e->validator->errors()->first());
+
+            return;
+        }
+
+        $this->reset(['accountName', 'credentials']);
+        session()->flash('message', 'Integration account saved.');
+    }
+
+    public function toggleAccount(int $accountId, \App\Services\Integrations\IntegrationAccountService $accounts): void
+    {
+        abort_unless(auth()->check() && auth()->user()->isSuperAdmin(), 403);
+        $accounts->toggle(\App\Models\IntegrationAccount::withoutGlobalScopes()->findOrFail($accountId));
+    }
+
+    public function deleteAccount(int $accountId, \App\Services\Integrations\IntegrationAccountService $accounts): void
+    {
+        abort_unless(auth()->check() && auth()->user()->isSuperAdmin(), 403);
+        $accounts->delete(\App\Models\IntegrationAccount::withoutGlobalScopes()->findOrFail($accountId));
+        session()->flash('message', 'Integration account deleted.');
+    }
+
     public function render()
     {
         abort_unless(auth()->check() && auth()->user()->isSuperAdmin(), 403);
@@ -92,8 +142,21 @@ class IntegrationStatus extends Component
             ],
         ];
 
+        $accountService = app(\App\Services\Integrations\IntegrationAccountService::class);
+        $managedAccounts = \App\Models\IntegrationAccount::withoutGlobalScopes()
+            ->orderBy('provider')
+            ->get()
+            ->map(fn ($a) => [
+                'account' => $a,
+                'masked' => $accountService->masked($a),
+                'tenant_name' => $a->tenant_id ? \App\Models\Tenant::find($a->tenant_id)?->name : 'All clinics (global)',
+            ]);
+
         return view('livewire.super-admin.integration-status', [
             'integrations' => $integrations,
+            'managedAccounts' => $managedAccounts,
+            'providerKeys' => \App\Services\Integrations\IntegrationAccountService::PROVIDERS,
+            'tenants' => \App\Models\Tenant::orderBy('name')->get(['id', 'name']),
         ])->layout('components.layouts.app');
     }
 }

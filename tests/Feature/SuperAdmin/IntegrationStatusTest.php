@@ -43,4 +43,42 @@ class IntegrationStatusTest extends TestCase
             ->test(IntegrationStatus::class)
             ->assertStatus(403);
     }
+
+    public function test_save_account_stores_and_masks(): void
+    {
+        Livewire::actingAs(User::factory()->superAdmin()->create())
+            ->test(IntegrationStatus::class)
+            ->set('accountProvider', 'whatsapp')
+            ->set('credentials', ['api_token' => 'EAAtoken999', 'phone_number_id' => '12345'])
+            ->call('saveAccount');
+
+        // Re-render: masked preview only, never plaintext.
+        Livewire::actingAs(User::factory()->superAdmin()->create())
+            ->test(IntegrationStatus::class)
+            ->assertSee('whatsapp')
+            ->assertSee('••••n999')
+            ->assertDontSee('EAAtoken999');
+    }
+
+    public function test_save_account_validation(): void
+    {
+        Livewire::actingAs(User::factory()->superAdmin()->create())
+            ->test(IntegrationStatus::class)
+            ->set('accountProvider', 'unknown')
+            ->call('saveAccount')
+            ->assertHasErrors('accountProvider');
+    }
+
+    public function test_toggle_and_delete_account(): void
+    {
+        $service = new \App\Services\Integrations\IntegrationAccountService;
+        $account = $service->upsert('resend', ['api_key' => 're_abc']);
+
+        Livewire::actingAs(User::factory()->superAdmin()->create())
+            ->test(IntegrationStatus::class)
+            ->call('toggleAccount', $account->id)
+            ->call('deleteAccount', $account->id);
+
+        $this->assertDatabaseMissing('integration_accounts', ['id' => $account->id]);
+    }
 }

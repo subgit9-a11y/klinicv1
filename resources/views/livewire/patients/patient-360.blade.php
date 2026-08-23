@@ -275,7 +275,7 @@
                     <livewire:ai.summary-panel
                         context-type="patient"
                         :context-id="$patient->id"
-                        :features="['patient_summary' => 'Summarize chart', 'followup_assistant' => 'Follow-up assistant']"
+                        :features="['patient_summary' => 'Summarize chart', 'followup_assistant' => 'Follow-up assistant', 'clinical_assistant' => 'Ask clinical assistant']"
                         wire:key="ai-summary-patient-{{ $patient->id }}" />
                 @endcan
                 @php

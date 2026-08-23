@@ -11,6 +11,14 @@
         </div>
     </div>
 
+    @if (isset($features['clinical_assistant']))
+        <div class="mb-3 flex gap-2">
+            <input wire:model="question" type="text" placeholder="Ask the clinical assistant a question…"
+                   class="flex-1 rounded border-gray-300 shadow-sm text-sm">
+        </div>
+        @error('question') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+    @endif
+
     @if (session('message'))
         <div class="mb-2 p-2 bg-white text-gray-700 rounded text-xs border border-brand-200">{{ session('message') }}</div>
     @endif

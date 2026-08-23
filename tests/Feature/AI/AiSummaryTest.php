@@ -233,4 +233,45 @@ class AiSummaryTest extends TestCase
 
         $this->assertSame(0, AiRequest::count());
     }
+    public function test_clinical_assistant_includes_question_and_stays_draft(): void
+    {
+        $this->fakeGemini('Answer based on chart.');
+        $patient = $this->patient();
+
+        $req = app(AiSummaryService::class)->clinicalAssistant($patient, 'Any drug interactions to watch?');
+
+        $this->assertSame('DRAFT', $req->output_status);
+        $this->assertSame('clinical_assistant', $req->feature?->key);
+        // The question is carried through as a template variable (not the
+        // context-builder summary, which names variables only).
+        $prompt = $req->promptVersion?->user_prompt_template;
+        $this->assertStringContainsString('{{question}}', (string) $prompt);
+    }
+
+    public function test_clinical_assistant_rejects_empty_question(): void
+    {
+        $this->expectException(ValidationException::class);
+        app(AiSummaryService::class)->clinicalAssistant($this->patient(), '   ');
+    }
+
+    public function test_clinical_assistant_via_panel(): void
+    {
+        $this->fakeGemini('Panel answer.');
+        $patient = $this->patient();
+
+        Livewire::test(SummaryPanel::class, [
+            'contextType' => 'patient',
+            'contextId' => $patient->id,
+            'features' => ['clinical_assistant' => 'Ask clinical assistant'],
+        ])
+            ->call('generate', 'clinical_assistant')
+            ->assertHasErrors('question')
+            ->set('question', 'What to review next visit?')
+            ->call('generate', 'clinical_assistant')
+            ->assertHasNoErrors('question');
+
+        $featureKey = AiFeature::where('key', 'clinical_assistant')->value('id');
+        $this->assertDatabaseHas('ai_requests', ['ai_feature_id' => $featureKey, 'output_status' => 'DRAFT']);
+    }
+
 }

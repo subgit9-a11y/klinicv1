@@ -154,6 +154,39 @@
                             <span class="font-mono">{{ $role->name }}</span>
                         </label>
                     @endforeach
+
+                    @php
+                        $grants = $selectedUser->permissions['grants'] ?? [];
+                        $revokes = $selectedUser->permissions['revokes'] ?? [];
+                    @endphp
+                    <h3 class="text-sm font-semibold mt-4 mb-1">Individual overrides</h3>
+                    <p class="text-xs text-gray-500 mb-2">Allow grants a permission on top of the role; deny removes it even if the role grants it.</p>
+                    <table class="w-full text-sm">
+                        <thead class="bg-gray-50 text-left text-xs font-medium text-gray-500 uppercase">
+                            <tr>
+                                <th class="px-2 py-1">Permission</th>
+                                <th class="px-2 py-1 text-center">Allow</th>
+                                <th class="px-2 py-1 text-center">Deny</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-100">
+                            @foreach ($permissionsGrouped as $group => $permissions)
+                                @foreach ($permissions as $permission)
+                                    <tr>
+                                        <td class="px-2 py-1 font-mono text-xs">{{ $permission->key }}</td>
+                                        <td class="px-2 py-1 text-center">
+                                            <input type="checkbox" wire:click="toggleUserPermission({{ $selectedUser->id }}, '{{ $permission->key }}', 'grants')"
+                                                @checked(in_array($permission->key, $grants)) class="rounded border-gray-300 text-green-600">
+                                        </td>
+                                        <td class="px-2 py-1 text-center">
+                                            <input type="checkbox" wire:click="toggleUserPermission({{ $selectedUser->id }}, '{{ $permission->key }}', 'revokes')"
+                                                @checked(in_array($permission->key, $revokes)) class="rounded border-gray-300 text-red-600">
+                                        </td>
+                                    </tr>
+                                @endforeach
+                            @endforeach
+                        </tbody>
+                    </table>
                 </div>
             @endif
         </div>
