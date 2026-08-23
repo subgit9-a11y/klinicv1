@@ -28,7 +28,7 @@ class AiScribeSeeder extends Seeder
                 'system_prompt' => 'You are a medical scribe for Ayurveda/Siddha/Homeopathy clinics. Extract structured clinical notes from dictation text. Return ONLY valid JSON with keys subjective, objective, assessment, plan.',
                 'user_prompt_template' => "Patient: {{patient_name}}\nSource: {{source}}\nDictation:\n{{dictation}}\n\nReturn JSON like {\"subjective\": \"...\", \"objective\": \"...\", \"assessment\": \"...\", \"plan\": \"...\"}.",
                 'default_model' => 'gemini-2.0-flash',
-                'created_by' => 'system',
+                'created_by' => null,
             ]
         );
 

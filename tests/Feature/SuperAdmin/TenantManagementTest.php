@@ -141,4 +141,41 @@ class TenantManagementTest extends TestCase
             ->assertSee('Suspended One')
             ->assertDontSee('Active One');
     }
+    public function test_usage_drill_down_shows_metrics(): void
+    {
+        $tenant = Tenant::factory()->create(['name' => 'Usage Clinic']);
+        $ctx = app(\App\Services\Tenancy\TenantContext::class);
+        $ctx->set($tenant->id);
+
+        $patient = \App\Models\Patient::factory()->create();
+        $doctor = User::factory()->forTenant($tenant)->role('DOCTOR')->create();
+        \App\Models\Appointment::factory()->create(['tenant_id' => $tenant->id, 'patient_id' => $patient->id, 'user_id' => $doctor->id]);
+        $ctx->forget();
+
+        Livewire::actingAs($this->admin())
+            ->test(TenantManagement::class)
+            ->call('viewUsage', $tenant->id)
+            ->assertSee('Usage — Usage Clinic')
+            ->assertSee('Appointments (total)')
+            ->assertSee('Notifications sent')
+            ->call('closeUsage')
+            ->assertDontSee('Appointments (total)');
+    }
+
+    public function test_usage_metrics_count_only_target_tenant(): void
+    {
+        $tenantA = Tenant::factory()->create();
+        $tenantB = Tenant::factory()->create();
+        $ctx = app(\App\Services\Tenancy\TenantContext::class);
+        $ctx->set($tenantB->id);
+        \App\Models\Patient::factory()->create();
+        $ctx->forget();
+
+        $component = Livewire::actingAs($this->admin())->test(TenantManagement::class)->call('viewUsage', $tenantA->id);
+
+        $usage = $component->viewData('usage');
+        $this->assertSame(0, $usage['patients']);
+        $this->assertTrue($usage !== null);
+    }
+
 }

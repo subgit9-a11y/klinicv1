@@ -166,6 +166,9 @@ class AppServiceProvider extends ServiceProvider
 
     public function boot(): void
     {
+        // The App\Livewire\AI namespace kebab-cases to a-i.* — register
+        // friendlier aliases for blade mounting.
+        \Livewire\Livewire::component('ai.summary-panel', \App\Livewire\AI\SummaryPanel::class);
         // Before any policy check, resolve granular RBAC permissions through
         // PermissionService. A permission key is a dotted "<module>.<action>"
         // string; anything else falls through to policy resolution.

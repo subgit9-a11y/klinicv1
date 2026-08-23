@@ -69,7 +69,8 @@ class AllPagesAndFlowsAuditTest extends TestCase
             '/patients/'.$patient->id, '/patients/'.$patient->id.'/edit', '/profile',
             '/treatments', '/prescriptions', '/payments', '/settings',
             '/ipd', '/billing', '/documents', '/reports', '/notifications', '/ai',
-            '/ai/board',
+            '/ai/board', '/followups', '/investigations',
+            '/settings/clinic', '/notification-templates',
         ];
 
         foreach ($pages as $uri) {
@@ -131,7 +132,7 @@ class AllPagesAndFlowsAuditTest extends TestCase
 
         $resp = $this->actingAs($this->owner)->get('/documents');
         $this->assertSame(200, $resp->status(), 'Documents list page should render.');
-        $this->assertStringContainsString('No documents uploaded', $resp->getContent());
+        $this->assertStringContainsString('No documents found', $resp->getContent());
     }
 
     public function test_audit_prescription_pdf_download(): void

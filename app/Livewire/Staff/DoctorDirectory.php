@@ -42,6 +42,13 @@ class DoctorDirectory extends Component
 
     public string $edit_specialization = '';
 
+
+    /** @var int|string|null */
+    public $edit_consultation_duration_minutes = null;
+
+    /** @var int|string|null */
+    public $edit_max_daily_appointments = null;
+
     public string $edit_registration_number = '';
 
     // Schedule form (one row per day)
@@ -106,6 +113,9 @@ class DoctorDirectory extends Component
         $this->edit_consultation_fee_rupees = $doctor->consultation_fee_cents !== null
             ? intdiv($doctor->consultation_fee_cents, 100) : null;
 
+        $this->edit_consultation_duration_minutes = $doctor->consultation_duration_minutes;
+        $this->edit_max_daily_appointments = $doctor->max_daily_appointments;
+
         $this->loadSchedule($doctor->availability()->orderBy('day_of_week')->get());
     }
 
@@ -117,6 +127,8 @@ class DoctorDirectory extends Component
             'edit_specialization' => 'nullable|string|max:120',
             'edit_registration_number' => 'nullable|string|max:80',
             'edit_consultation_fee_rupees' => 'nullable|integer|min:0',
+            'edit_consultation_duration_minutes' => 'nullable|integer|min:5|max:240',
+            'edit_max_daily_appointments' => 'nullable|integer|min:1|max:200',
         ]);
 
         $doctor = $this->doctors()->findOrFail($this->selectedId);
@@ -124,6 +136,8 @@ class DoctorDirectory extends Component
             'specialization' => $this->edit_specialization ?: null,
             'registration_number' => $this->edit_registration_number ?: null,
             'consultation_fee_cents' => $this->edit_consultation_fee_rupees !== null ? $this->edit_consultation_fee_rupees * 100 : null,
+            'consultation_duration_minutes' => $this->edit_consultation_duration_minutes,
+            'max_daily_appointments' => $this->edit_max_daily_appointments,
         ]);
 
         session()->flash('message', 'Profile updated.');

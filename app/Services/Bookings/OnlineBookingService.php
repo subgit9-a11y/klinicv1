@@ -50,6 +50,7 @@ class OnlineBookingService
         private readonly PatientService $patients,
         private readonly BillingService $billing,
         private readonly PaymentGatewayInterface $gateway,
+        private readonly \App\Services\Settings\ClinicSettingsService $clinicSettings,
     ) {}
 
     /**
@@ -88,7 +89,7 @@ class OnlineBookingService
             ]);
 
         $creator = User::where('tenant_id', $tenant->id)->firstOrFail();
-        $duration = (int) config('klinic.public_booking.consultation_duration_minutes', 30);
+        $duration = $this->clinicSettings->onlineBookingDurationMinutes($tenant->id);
         $end = $this->computeEndTime($validated['start_time'], $duration);
 
         // Book as SCHEDULED — NOT confirmed. Confirmation requires verified payment.
@@ -178,7 +179,7 @@ class OnlineBookingService
      */
     private function createPaymentFor(Appointment $appointment, $patient, Tenant $tenant): array
     {
-        $fee = (int) config('klinic.public_booking.consultation_fee_cents', 49900);
+        $fee = $this->clinicSettings->onlineBookingFeeCents($tenant->id);
 
         // Create + issue an invoice for the consultation fee.
         $invoice = $this->billing->createInvoice([

@@ -26,6 +26,8 @@ class TenantManagement extends Component
 
     public ?int $editingId = null;
 
+    public ?int $usageTenantId = null;
+
     // Clinic form
     public string $name = '';
 
@@ -129,6 +131,43 @@ class TenantManagement extends Component
         session()->flash('message', "Clinic {$name} archived.");
     }
 
+    public function viewUsage(int $tenantId): void
+    {
+        $this->guardSuperAdmin();
+
+        $this->usageTenantId = $tenantId;
+    }
+
+    public function closeUsage(): void
+    {
+        $this->usageTenantId = null;
+    }
+
+    /**
+     * @return array<string, int|float>|null
+     */
+    private function usageMetrics(?int $tenantId): ?array
+    {
+        if ($tenantId === null) {
+            return null;
+        }
+
+        $since30 = now()->subDays(30);
+
+        return [
+            'users' => (int) \Illuminate\Support\Facades\DB::table('users')->where('tenant_id', $tenantId)->count(),
+            'patients' => (int) \Illuminate\Support\Facades\DB::table('patients')->where('tenant_id', $tenantId)->count(),
+            'appointments_total' => (int) \Illuminate\Support\Facades\DB::table('appointments')->where('tenant_id', $tenantId)->count(),
+            'appointments_30d' => (int) \Illuminate\Support\Facades\DB::table('appointments')->where('tenant_id', $tenantId)->where('created_at', '>=', $since30)->count(),
+            'consultations_total' => (int) \Illuminate\Support\Facades\DB::table('consultations')->where('tenant_id', $tenantId)->count(),
+            'invoices_total' => (int) \Illuminate\Support\Facades\DB::table('invoices')->where('tenant_id', $tenantId)->count(),
+            'collected_rupees' => ((int) \Illuminate\Support\Facades\DB::table('payments')->where('tenant_id', $tenantId)->where('status', 'SUCCESS')->sum('amount_cents')) / 100.0,
+            'documents' => (int) \Illuminate\Support\Facades\DB::table('documents')->where('tenant_id', $tenantId)->count(),
+            'ai_requests' => (int) \Illuminate\Support\Facades\DB::table('ai_requests')->where('tenant_id', $tenantId)->count(),
+            'notifications_sent' => (int) \Illuminate\Support\Facades\DB::table('notification_deliveries')->where('tenant_id', $tenantId)->where('status', 'SENT')->count(),
+        ];
+    }
+
     public function resetForm(): void
     {
         $this->reset(['name', 'email', 'phone', 'owner_name', 'owner_email', 'owner_password', 'editingId']);
@@ -155,6 +194,8 @@ class TenantManagement extends Component
 
         return view('livewire.super-admin.tenant-management', [
             'tenants' => $tenants,
+            'usageTenant' => $this->usageTenantId ? Tenant::find($this->usageTenantId) : null,
+            'usage' => $this->usageMetrics($this->usageTenantId),
             'plans' => Plan::where('is_active', true)->orderBy('price_cents')->get(),
         ])->layout('components.layouts.app');
     }

@@ -253,4 +253,59 @@ class ReportServiceTest extends TestCase
         $result2 = app(ReportService::class)->appointmentSummary(now()->subDay(), now()->addDay());
         $this->assertSame(1, $result2['scheduled']);
     }
+
+    public function test_appointments_by_type_splits_channels(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $patient = Patient::factory()->create();
+
+        Appointment::factory()->for($patient)->create(['type' => 'WALK_IN', 'appointment_date' => today()]);
+        Appointment::factory()->for($patient)->create(['type' => 'WALK_IN', 'appointment_date' => today()]);
+        Appointment::factory()->for($patient)->create(['type' => 'ONLINE', 'appointment_date' => today()]);
+
+        $result = app(ReportService::class)->appointmentsByType(today()->subDay(), today()->addDay());
+
+        $this->assertSame(2, $result['walk_in']);
+        $this->assertSame(1, $result['online']);
+        $this->assertSame(0, $result['in_person']);
+    }
+
+    public function test_followup_summary_counts_by_status(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+        $patient = Patient::factory()->create();
+
+        \App\Models\Followup::create(['tenant_id' => $tenant->id, 'patient_id' => $patient->id, 'due_date' => today(), 'status' => 'PENDING']);
+        \App\Models\Followup::create(['tenant_id' => $tenant->id, 'patient_id' => $patient->id, 'due_date' => today(), 'status' => 'COMPLETED']);
+        \App\Models\Followup::create(['tenant_id' => $tenant->id, 'patient_id' => $patient->id, 'due_date' => today(), 'status' => 'MISSED']);
+
+        $result = app(ReportService::class)->followupSummary(today()->subDay(), today()->addDay());
+
+        $this->assertSame(1, $result['pending']);
+        $this->assertSame(1, $result['completed']);
+        $this->assertSame(1, $result['missed']);
+        $this->assertSame(3, $result['total']);
+    }
+
+    public function test_finance_extras_sums_refunds_expenses_variance(): void
+    {
+        $tenant = Tenant::factory()->create();
+        $this->setTenant($tenant);
+
+        $payment = \App\Models\Payment::factory()->create(['tenant_id' => $tenant->id]);
+        \Illuminate\Support\Facades\DB::table('refunds')->insert([
+            ['tenant_id' => $tenant->id, 'payment_id' => $payment->id, 'refund_number' => 'R1', 'amount_cents' => 10000, 'status' => 'COMPLETED', 'refunded_at' => now(), 'created_at' => now(), 'updated_at' => now()],
+            ['tenant_id' => $tenant->id, 'payment_id' => $payment->id, 'refund_number' => 'R2', 'amount_cents' => 5000, 'status' => 'PENDING', 'refunded_at' => now(), 'created_at' => now(), 'updated_at' => now()],
+        ]);
+        \App\Models\Expense::factory()->create(['tenant_id' => $tenant->id, 'amount_cents' => 25000, 'expense_date' => today()]);
+
+        $result = app(ReportService::class)->financeExtras(today()->subDay(), today()->addDay());
+
+        $this->assertSame(100.0, $result['refunds']);
+        $this->assertSame(1, $result['refund_count']);
+        $this->assertSame(250.0, $result['expenses']);
+        $this->assertSame(1, $result['expense_count']);
+    }
 }

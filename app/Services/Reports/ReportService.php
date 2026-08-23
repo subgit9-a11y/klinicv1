@@ -304,20 +304,112 @@ class ReportService
      *
      * @return array<string, mixed>
      */
+    /**
+     * Operational: appointments split by booking channel.
+     *
+     * @return array<string, int>
+     */
+    public function appointmentsByType(Carbon $from, Carbon $to): array
+    {
+        $tenantId = $this->tenantId();
+
+        $rows = DB::table('appointments')
+            ->select('type', DB::raw('count(*) as count'))
+            ->whereBetween('appointment_date', [$from->toDateString(), $to->toDateString()])
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->groupBy('type')
+            ->pluck('count', 'type');
+
+        return [
+            'walk_in' => (int) ($rows['WALK_IN'] ?? 0),
+            'online' => (int) ($rows['ONLINE'] ?? 0),
+            'in_person' => (int) ($rows['IN_PERSON'] ?? 0),
+            'follow_up' => (int) ($rows['FOLLOW_UP'] ?? 0),
+        ];
+    }
+
+    /**
+     * Clinical: follow-up pipeline for a date range (by due date).
+     *
+     * @return array<string, int>
+     */
+    public function followupSummary(Carbon $from, Carbon $to): array
+    {
+        $tenantId = $this->tenantId();
+
+        $rows = DB::table('followups')
+            ->select('status', DB::raw('count(*) as count'))
+            ->whereBetween('due_date', [$from->toDateString(), $to->toDateString()])
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->groupBy('status')
+            ->pluck('count', 'status');
+
+        return [
+            'pending' => (int) ($rows['PENDING'] ?? 0),
+            'completed' => (int) ($rows['COMPLETED'] ?? 0),
+            'missed' => (int) ($rows['MISSED'] ?? 0),
+            'rescheduled' => (int) ($rows['RESCHEDULED'] ?? 0),
+            'cancelled' => (int) ($rows['CANCELLED'] ?? 0),
+            'total' => (int) $rows->sum(),
+        ];
+    }
+
+    /**
+     * Financial: refunds issued, expenses recorded, and cash-register
+     * variance for a date range. Amounts in rupees.
+     *
+     * @return array{refunds: float, refund_count: int, expenses: float, expense_count: int, cash_variance: float}
+     */
+    public function financeExtras(Carbon $from, Carbon $to): array
+    {
+        $tenantId = $this->tenantId();
+
+        $refunds = DB::table('refunds')
+            ->where('status', 'COMPLETED')
+            ->whereBetween('refunded_at', [$from, $to])
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->selectRaw('COUNT(*) as cnt, COALESCE(SUM(amount_cents), 0) as total')
+            ->first();
+
+        $expenses = DB::table('expenses')
+            ->whereBetween('expense_date', [$from->toDateString(), $to->toDateString()])
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->selectRaw('COUNT(*) as cnt, COALESCE(SUM(amount_cents), 0) as total')
+            ->first();
+
+        $variance = DB::table('cash_registers')
+            ->where('status', 'CLOSED')
+            ->whereNotNull('variance_cents')
+            ->whereBetween('closed_at', [$from, $to])
+            ->when($tenantId, fn ($q) => $q->where('tenant_id', $tenantId))
+            ->sum('variance_cents');
+
+        return [
+            'refunds' => ((int) $refunds->total) / 100.0,
+            'refund_count' => (int) $refunds->cnt,
+            'expenses' => ((int) $expenses->total) / 100.0,
+            'expense_count' => (int) $expenses->cnt,
+            'cash_variance' => ((int) $variance) / 100.0,
+        ];
+    }
+
     public function dashboard(Carbon $from, Carbon $to): array
     {
         return [
             'period' => ['from' => $from->toDateString(), 'to' => $to->toDateString()],
             'operational' => [
                 'appointments' => $this->appointmentSummary($from, $to),
+                'appointments_by_type' => $this->appointmentsByType($from, $to),
                 'avg_wait_time_minutes' => $this->averageWaitTime($from, $to),
                 'ipd' => $this->ipdSummary($from, $to),
             ],
             'financial' => [
                 'revenue' => $this->revenueSummary($from, $to),
                 'collections_by_method' => $this->collectionsByMethod($from, $to),
+                'extras' => $this->financeExtras($from, $to),
             ],
             'clinical' => [
+                'followups' => $this->followupSummary($from, $to),
                 'consultations_by_system' => $this->consultationsBySystem($from, $to),
                 'prescriptions' => $this->prescriptionSummary($from, $to),
                 'treatments' => $this->treatmentSummary($from, $to),

@@ -99,6 +99,27 @@ Channels: `in_app`, `sms`, `whatsapp`, `email`. Event keys include `appointment.
 
 Templates use `{{variable}}` placeholders (e.g. `{{patient_name}}`, `{{doctor_name}}`, `{{appointment_date}}`, `{{start_time}}`, `{{amount}}`, `{{invoice_number}}`). The `NotificationService::render()` method substitutes them.
 
+## 7a. Clinic operator settings
+
+- **Clinic setup** (`/settings/clinic`, CLINIC_OWNER) — appointment types with
+  default durations, and the online-booking consultation fee + duration. Values
+  are stored in `tenant_settings` (DB-backed) and override the
+  `klinic.public_booking` config defaults for that clinic.
+- **Templates** (`/notification-templates`, CLINIC_OWNER/SUPER_ADMIN) — full
+  notification template editor: per-event/channel bodies with placeholders,
+  WhatsApp template names, SMS IDs, active toggle. Platform templates are
+  read-only to clinic owners; clinic-level templates override delivery.
+- **AI Prompts** (`/super-admin/ai-prompts`, SUPER_ADMIN) — prompt catalogue
+  per medicine system with version history. The highest version is active;
+  publishing creates the next version. Enable/disable controls whether the
+  prompt resolves for AI generation.
+- **Tenant usage drill-down** (`/super-admin/tenants` → Usage) — per-clinic
+  metrics (users, patients, appointments total/30d, consultations, invoices,
+  collected revenue, documents, AI requests, notifications sent).
+- **Public booking status** (`/book/status`) — guests can check an online
+  booking by reference + phone (last-10-digit match, scoped to the booking
+  tenant, rate-limited 20/min). Cashfree returns users to `/book/done`.
+
 ## 8. Financial operations
 
 ### Cash register

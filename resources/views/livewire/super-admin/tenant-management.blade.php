@@ -120,6 +120,7 @@
                         <td class="px-4 py-3 text-sm text-gray-700">{{ $tenant->patients_count }}</td>
                         <td class="px-4 py-3 text-sm text-gray-500">{{ $tenant->trial_ends_at?->format('d M Y') ?? '—' }}</td>
                         <td class="px-4 py-3 text-right space-x-1">
+                            <button wire:click="viewUsage({{ $tenant->id }})" class="text-gray-600 hover:underline text-sm">Usage</button>
                             <button wire:click="edit({{ $tenant->id }})" class="text-brand-600 hover:underline text-sm">Edit</button>
                             @if ($tenant->status === 'SUSPENDED')
                                 <button wire:click="activate({{ $tenant->id }})" wire:confirm="Re-activate this clinic?" class="text-green-600 hover:underline text-sm">Activate</button>
@@ -136,4 +137,25 @@
         </table>
         <div class="px-4 py-3 border-t border-gray-200">{{ $tenants->links() }}</div>
     </div>
+
+    @if ($usageTenant && $usage)
+        <div class="bg-white rounded-lg shadow p-6" wire:key="usage-panel">
+            <div class="flex items-center justify-between mb-4">
+                <h3 class="font-semibold text-gray-900">Usage — {{ $usageTenant->name }}</h3>
+                <button wire:click="closeUsage" class="text-gray-400 hover:text-gray-600">✕</button>
+            </div>
+            <div class="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['users']) }}</div><div class="text-gray-500">Users</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['patients']) }}</div><div class="text-gray-500">Patients</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['appointments_total']) }}</div><div class="text-gray-500">Appointments (total)</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['appointments_30d']) }}</div><div class="text-gray-500">Appointments (30d)</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['consultations_total']) }}</div><div class="text-gray-500">Consultations</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['invoices_total']) }}</div><div class="text-gray-500">Invoices</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">₹{{ number_format($usage['collected_rupees'], 2) }}</div><div class="text-gray-500">Collected</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['documents']) }}</div><div class="text-gray-500">Documents</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['ai_requests']) }}</div><div class="text-gray-500">AI requests</div></div>
+                <div><div class="text-2xl font-bold text-gray-900">{{ number_format($usage['notifications_sent']) }}</div><div class="text-gray-500">Notifications sent</div></div>
+            </div>
+        </div>
+    @endif
 </div>

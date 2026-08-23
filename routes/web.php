@@ -31,6 +31,8 @@ Route::get('/', function () {
 Route::get('/book', [OnlineBookingController::class, 'show'])->name('online-booking.show');
 Route::get('/book/slots', [OnlineBookingController::class, 'slots'])->name('online-booking.slots');
 Route::post('/book', [OnlineBookingController::class, 'store'])->name('online-booking.store');
+Route::get('/book/done', [OnlineBookingController::class, 'done'])->name('online-booking.done');
+Route::get('/book/status', [OnlineBookingController::class, 'status'])->name('online-booking.status')->middleware('throttle:20,1');
 
 Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(function () {
     Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
@@ -59,10 +61,12 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
     Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
     Route::post('/settings', [SettingController::class, 'update'])->name('settings.update');
     Route::post('/settings/add', [SettingController::class, 'store'])->name('settings.store');
+    Route::get('/settings/clinic', \App\Livewire\Settings\ClinicSettings::class)->name('settings.clinic');
+    Route::get('/notification-templates', \App\Livewire\Notifications\TemplateManager::class)->name('notification-templates.index');
 
     Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
 
-    Route::get('/documents', [DocumentController::class, 'index'])->name('documents.index');
+    Route::get('/documents', \App\Livewire\Documents\DocumentManager::class)->name('documents.index');
     Route::get('/documents/{document}/stream', [DocumentController::class, 'streamDocument'])->name('documents.show');
     Route::get('/prescriptions/{prescription}/pdf', [DocumentController::class, 'downloadPrescription'])->name('prescriptions.pdf');
     Route::get('/invoices/{invoice}/pdf', [DocumentController::class, 'downloadInvoice'])->name('invoices.pdf');
@@ -97,6 +101,8 @@ Route::middleware(['auth', 'active', 'verified', '2fa', 'tenant'])->group(functi
     Route::get('/treatment-catalog', \App\Livewire\Treatments\TreatmentCatalog::class)->name('treatment-catalog.index');
     Route::get('/ipd/configuration', \App\Livewire\IPD\IpdConfiguration::class)->name('ipd.configuration');
     Route::get('/teleconsultations', \App\Livewire\Telemedicine\TeleconsultationBoard::class)->name('teleconsultations.index');
+    Route::get('/followups', \App\Livewire\EMR\FollowupBoard::class)->name('followups.index');
+    Route::get('/investigations', \App\Livewire\EMR\InvestigationBoard::class)->name('investigations.index');
 
     Route::get('/documents/stream/{path}', function (string $path) {
         $decoded = base64_decode($path, true);
@@ -146,6 +152,8 @@ Route::middleware(['auth', 'active', 'verified', '2fa'])->group(function () {
         ->name('super-admin.operations');
     Route::get('/super-admin/rbac', \App\Livewire\SuperAdmin\RbacManagement::class)
         ->name('super-admin.rbac');
+    Route::get('/super-admin/ai-prompts', \App\Livewire\SuperAdmin\AiPromptManagement::class)
+        ->name('super-admin.ai-prompts');
 });
 
 require __DIR__.'/auth.php';

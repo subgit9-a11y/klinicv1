@@ -91,6 +91,36 @@ class DoctorDirectoryTest extends TestCase
         ]);
     }
 
+    public function test_save_profile_sets_duration_and_capacity(): void
+    {
+        $doctor = User::factory()->forTenant($this->tenant)->role('DOCTOR')->create();
+
+        Livewire::actingAs($this->owner)
+            ->test(DoctorDirectory::class)
+            ->call('select', $doctor->id)
+            ->set('edit_consultation_duration_minutes', 45)
+            ->set('edit_max_daily_appointments', 20)
+            ->call('saveProfile');
+
+        $fresh = $doctor->fresh();
+        $this->assertSame(45, $fresh->consultation_duration_minutes);
+        $this->assertSame(20, $fresh->max_daily_appointments);
+    }
+
+    public function test_save_profile_rejects_invalid_duration(): void
+    {
+        $doctor = User::factory()->forTenant($this->tenant)->role('DOCTOR')->create();
+
+        Livewire::actingAs($this->owner)
+            ->test(DoctorDirectory::class)
+            ->call('select', $doctor->id)
+            ->set('edit_consultation_duration_minutes', 2)
+            ->call('saveProfile')
+            ->assertHasErrors(['edit_consultation_duration_minutes']);
+
+        $this->assertNull($doctor->fresh()->consultation_duration_minutes);
+    }
+
     public function test_save_schedule_persists_availability_with_break(): void
     {
         $doctor = User::factory()->forTenant($this->tenant)->role('DOCTOR')->create();

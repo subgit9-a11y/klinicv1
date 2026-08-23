@@ -76,6 +76,8 @@ class DoctorService
             'medicine_system' => ['nullable', 'in:AYURVEDA,SIDDHA,HOMEOPATHY,GENERAL'],
             'consultation_fee_cents' => ['nullable', 'integer', 'min:0'],
             'followup_fee_cents' => ['nullable', 'integer', 'min:0'],
+            'consultation_duration_minutes' => ['nullable', 'integer', 'min:5', 'max:240'],
+            'max_daily_appointments' => ['nullable', 'integer', 'min:1', 'max:200'],
         ]);
 
         return DB::transaction(function () use ($validated, $tenantId) {
@@ -111,6 +113,8 @@ class DoctorService
             'medicine_system' => ['nullable', 'in:AYURVEDA,SIDDHA,HOMEOPATHY,GENERAL'],
             'consultation_fee_cents' => ['nullable', 'integer', 'min:0'],
             'followup_fee_cents' => ['nullable', 'integer', 'min:0'],
+            'consultation_duration_minutes' => ['nullable', 'integer', 'min:5', 'max:240'],
+            'max_daily_appointments' => ['nullable', 'integer', 'min:1', 'max:200'],
             'is_active' => ['sometimes', 'boolean'],
             'password' => ['sometimes', 'string', 'min:8'],
         ])->validate();

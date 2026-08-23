@@ -120,6 +120,16 @@
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Consultation fee (₹)</label>
                                 <input wire:model="edit_consultation_fee_rupees" type="number" min="0" class="w-full rounded border-gray-300 shadow-sm">
                             </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Consultation duration (minutes)</label>
+                                <input wire:model="edit_consultation_duration_minutes" type="number" min="5" max="240" placeholder="Default 30" class="w-full rounded border-gray-300 shadow-sm">
+                                @error('edit_consultation_duration_minutes') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
+                            <div>
+                                <label class="block text-sm font-medium text-gray-700 mb-1">Max appointments per day</label>
+                                <input wire:model="edit_max_daily_appointments" type="number" min="1" max="200" placeholder="No cap" class="w-full rounded border-gray-300 shadow-sm">
+                                @error('edit_max_daily_appointments') <span class="text-red-500 text-xs">{{ $message }}</span> @enderror
+                            </div>
                             <button wire:click="saveProfile" class="px-4 py-2 bg-brand-600 text-white rounded-md text-sm font-medium hover:bg-brand-700">Save profile</button>
                         </div>
                     @elseif ($panel === 'schedule')

@@ -8,26 +8,33 @@ use App\Models\Document;
 use App\Models\Invoice;
 use App\Models\Prescription;
 use App\Services\Documents\PdfService;
-use Illuminate\Support\Facades\Storage;
 use Symfony\Component\HttpFoundation\StreamedResponse;
 
 class DocumentController extends Controller
 {
     public function __construct(private readonly PdfService $pdf) {}
 
-    public function index()
-    {
-        $documents = Document::query()->latest()->paginate(25);
-
-        return view('documents.index', ['documents' => $documents]);
-    }
-
     public function streamDocument(Document $document): StreamedResponse
     {
-        $disk = Storage::disk($document->disk);
+        app(\App\Services\Audit\AuditService::class)->record(
+            'document.downloaded',
+            'documents',
+            ['after' => ['name' => $document->name]],
+            $document,
+        );
 
-        return $disk->download($document->path, $document->name, [
-            'Content-Type' => $document->mime_type,
+        // Stream through the storage provider — documents.disk stores the
+        // provider label ('LOCAL'/'S3'), not a filesystem disk name.
+        $provider = app(\App\Contracts\StorageProviderInterface::class);
+        abort_unless($provider->exists($document->path), 404);
+
+        return response()->stream(function () use ($provider, $document) {
+            $stream = $provider->stream($document->path);
+            fpassthru($stream);
+            fclose($stream);
+        }, 200, [
+            'Content-Type' => $document->mime_type ?? 'application/octet-stream',
+            'Content-Disposition' => 'attachment; filename="'.$document->name.'"',
         ]);
     }
 

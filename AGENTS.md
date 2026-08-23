@@ -513,3 +513,13 @@ Final production-grade items closing the gap to launch. Suite now **714 pass / 1
 - **Database backup**: `klinic:backup-database` (mysqldump --single-transaction --routines --triggers | gzip → `storage/app/backups/db-{ts}.sql.gz`, 30-day prune) — aborts loudly on non-mysql drivers (never a silent no-op); scheduled daily at 03:00 (now 8 commands total).
 - **Docs**: `docs/ARCHITECTURE_DECISIONS.md` (auth/DB/queue/AI/payments rationale incl. Firebase/Supabase rejection), `docs/PRODUCTION_CHECKLIST.md` (pre-launch), admin guide operations quick-reference.
 - **Scheduler**: now 8 commands (added backup-database); SchedulerRunTest updated.
+
+## Operator UI wave (Tasks 7–12, COMPLETED)
+
+- **Clinic Settings** (`/settings/clinic`, CLINIC_OWNER) — `App\Services\Settings\ClinicSettingsService` over `tenant_settings`: DB-backed appointment types/durations + online booking fee/duration; `OnlineBookingService` reads fee/duration from it (config fallback). Component guard via `isClinicOwner()` in `render()`.
+- **Notification Template editor** (`/notification-templates`) — `Livewire\Notifications\TemplateManager` on `NotificationTemplateService`; global (platform) templates read-only for clinic owners. **Seeder gotcha**: seed `NotificationTemplateSeeder` BEFORE setting TenantContext or global rows get tenant-stamped. Service enforces one template per event/channel/scope.
+- **Super Admin AI Prompts** (`/super-admin/ai-prompts`) — `Livewire\SuperAdmin\AiPromptManagement`: prompt catalogue + versions; highest version = active (`AiPrompt::activeVersion()`); publish = create next version; `is_active` toggle controls resolution.
+- **Tenant usage drill-down** — `TenantManagement::viewUsage()` panel with DB::table counts scoped by `tenant_id`.
+- **Public booking status page** (`/book/status`, rate-limited 20/min) + `/book/done` landing. Lookup requires reference + phone (last-10-digit match normalizes +91 prefixes) scoped to the resolved booking tenant.
+- **Edit tooling**: Livewire catch of `ValidationException` should `addError` not `session()->flash` — `assertSessionHas` is unreliable in Livewire tests.
+- Audit test extended with `/settings/clinic` + `/notification-templates`. Suite now 784 pass / 2109 assertions. FileEditor `str_replace` broken this session — used python3 one-liners / insert instead.

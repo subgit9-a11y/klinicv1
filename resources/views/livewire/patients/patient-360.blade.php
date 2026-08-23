@@ -271,6 +271,13 @@
                 @break
 
             @case('ai_summary')
+                @can(\App\Services\Auth\Permissions::AI_USE)
+                    <livewire:ai.summary-panel
+                        context-type="patient"
+                        :context-id="$patient->id"
+                        :features="['patient_summary' => 'Summarize chart', 'followup_assistant' => 'Follow-up assistant']"
+                        wire:key="ai-summary-patient-{{ $patient->id }}" />
+                @endcan
                 @php
                     $aiRequests = \App\Models\AiRequest::where('contextable_type', \App\Models\Patient::class)
                         ->where('contextable_id', $patient->id)

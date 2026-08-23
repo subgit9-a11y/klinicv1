@@ -111,6 +111,69 @@ class OnlineBookingController extends Controller
             ->with('status', $message);
     }
 
+    public function done()
+    {
+        return view('online-booking.done');
+    }
+
+    public function status(Request $request)
+    {
+        $tenant = $this->resolveTenantAndSet();
+
+        $lookup = null;
+        if ($request->filled('reference')) {
+            $lookup = $this->lookupBooking($request->input('reference'), (string) $request->input('phone', ''), $tenant->id);
+        }
+
+        return view('online-booking.status', [
+            'lookup' => $lookup,
+            'reference' => $request->input('reference', ''),
+            'phone' => $request->input('phone', ''),
+        ]);
+    }
+
+    /**
+     * @return array{status: string, date: string, start_time: string, doctor: string, patient: string}|null
+     */
+    private function lookupBooking(string $reference, string $phone, int $tenantId): ?array
+    {
+        $id = (int) ltrim($reference, '#Kk ');
+        if ($id <= 0 || strlen(preg_replace('/\D/', '', $phone)) < 6) {
+            return null;
+        }
+
+        $appointment = \App\Models\Appointment::withoutGlobalScopes()
+            ->with(['patient', 'doctor'])
+            ->where('id', $id)
+            ->where('tenant_id', $tenantId)
+            ->first();
+
+        if ($appointment === null || $appointment->patient === null) {
+            return null;
+        }
+
+        $digits = fn (string $value) => substr(preg_replace('/\D/', '', $value), -10);
+        if ($digits((string) $appointment->patient->phone) !== $digits($phone)) {
+            return null;
+        }
+
+        return [
+            'status' => $appointment->status,
+            'date' => (string) $appointment->appointment_date,
+            'start_time' => (string) $appointment->start_time,
+            'doctor' => $appointment->doctor?->name ?? '—',
+            'patient' => $appointment->patient->name,
+        ];
+    }
+
+    private function resolveTenantAndSet(): Tenant
+    {
+        $tenant = $this->resolveTenant();
+        app(TenantContext::class)->set($tenant->id);
+
+        return $tenant;
+    }
+
     private function resolveTenant(): Tenant
     {
         $tenantId = (int) config('klinic.public_booking.tenant_id', 0);

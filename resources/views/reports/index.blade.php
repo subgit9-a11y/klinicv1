@@ -22,6 +22,9 @@
             $appts = $operational['appointments'] ?? [];
             $revenue = $financial['revenue'] ?? [];
             $collections = $financial['collections_by_method'] ?? [];
+            $apptTypes = $operational['appointments_by_type'] ?? [];
+            $extras = $financial['extras'] ?? [];
+            $followups = $clinical['followups'] ?? [];
             $consultations = $clinical['consultations_by_system'] ?? [];
             $prescriptions = $clinical['prescriptions'] ?? [];
             $treatments = $clinical['treatments'] ?? [];
@@ -42,6 +45,12 @@
                 'No-show' => $appts['no_show'] ?? 0,
                 'Total' => $appts['total'] ?? 0,
             ]" />
+            <x-reports.subtable title="Appointments by channel" :rows="[
+                'Walk-in' => $apptTypes['walk_in'] ?? 0,
+                'Online' => $apptTypes['online'] ?? 0,
+                'In-person' => $apptTypes['in_person'] ?? 0,
+                'Follow-up' => $apptTypes['follow_up'] ?? 0,
+            ]" />
         </x-reports.section>
 
         <x-reports.section title="Financial">
@@ -52,12 +61,24 @@
             @if(!empty($collections))
                 <x-reports.subtable title="Collections by method" :rows="$collections" />
             @endif
+            <x-reports.subtable title="Refunds, expenses & cash" :rows="[
+                'Refunds (' . ($extras['refund_count'] ?? 0) . ')' => '₹' . number_format($extras['refunds'] ?? 0, 2),
+                'Expenses (' . ($extras['expense_count'] ?? 0) . ')' => '₹' . number_format($extras['expenses'] ?? 0, 2),
+                'Cash variance' => '₹' . number_format($extras['cash_variance'] ?? 0, 2),
+            ]" />
         </x-reports.section>
 
         <x-reports.section title="Clinical">
             @if(!empty($consultations))
                 <x-reports.subtable title="Consultations by system" :rows="$consultations" />
             @endif
+            <x-reports.subtable title="Follow-ups" :rows="[
+                'Pending' => $followups['pending'] ?? 0,
+                'Completed' => $followups['completed'] ?? 0,
+                'Missed' => $followups['missed'] ?? 0,
+                'Rescheduled' => $followups['rescheduled'] ?? 0,
+                'Total' => $followups['total'] ?? 0,
+            ]" />
             <x-reports.subtable title="Prescriptions" :rows="[
                 'Total' => $prescriptions['total'] ?? 0,
                 'Completed' => $prescriptions['completed'] ?? 0,
