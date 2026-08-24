@@ -9,7 +9,10 @@
 
     <title>{{ $title ?? __('klinic360.app_name') }}</title>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    {{-- Guest (auth/booking) pages use Livewire's own script injection only.
+         Loading the Vite app bundle here double-starts Livewire and breaks
+         wire:click handlers (signup wizard, login button). --}}
+    @vite(['resources/css/app.css'])
 </head>
 <body class="bg-gradient-to-br from-brand-50 to-white text-gray-900 font-sans antialiased min-h-screen flex items-center justify-center px-4 py-8">
     <div class="max-w-md w-full bg-white rounded-xl shadow-lg border border-gray-200 p-8">
