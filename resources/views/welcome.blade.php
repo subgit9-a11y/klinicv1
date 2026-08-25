@@ -34,7 +34,7 @@
                 <a href="{{ route('dashboard') }}" class="text-sm font-medium text-brand-700 hover:underline">Dashboard →</a>
             @else
                 <a href="{{ route('login') }}" class="text-sm font-medium text-gray-600 hover:text-brand-700">Sign in</a>
-                <a href="{{ route('signup') }}" class="px-4 py-2 rounded-md bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">Start free trial</a>
+                <a href="{{ route('onboarding.signup') }}" class="px-4 py-2 rounded-md bg-brand-600 text-white text-sm font-semibold hover:bg-brand-700">Start free trial</a>
             @endauth
         </div>
     </div>
@@ -51,7 +51,7 @@
             Patient UID, 15-tab Patient 360, appointment queue, EMR consultations, treatments, IPD wards, billing, and AI assistance — running in your browser, no IT team needed.
         </p>
         <div class="mt-10 flex flex-col sm:flex-row items-center justify-center gap-4">
-            <a href="{{ route('signup') }}" class="px-8 py-4 rounded-lg bg-white text-brand-700 font-bold text-lg shadow-lg hover:shadow-xl">
+            <a href="{{ route('onboarding.signup') }}" class="px-8 py-4 rounded-lg bg-white text-brand-700 font-bold text-lg shadow-lg hover:shadow-xl">
                 Start 14-day free trial — no card
             </a>
             <a href="{{ route('online-booking.show') }}" class="px-8 py-4 rounded-lg border-2 border-white/60 font-semibold hover:bg-white/10">
@@ -180,7 +180,7 @@
                     <li>✓ AI assistance (draft-only)</li>
                     <li>✓ Email + WhatsApp notifications</li>
                 </ul>
-                <a href="{{ route('signup') }}" class="mt-6 block text-center rounded-lg bg-gray-900 text-white font-semibold py-3 hover:bg-gray-800">Start trial — ₹999</a>
+                <a href="{{ route('onboarding.signup') }}" class="mt-6 block text-center rounded-lg bg-gray-900 text-white font-semibold py-3 hover:bg-gray-800">Start trial — ₹999</a>
             </div>
             <div class="bg-brand-700 text-white rounded-2xl p-8 card-shadow">
                 <h3 class="text-lg font-bold">Small Clinic</h3>
@@ -193,7 +193,7 @@
                     <li>✓ AI Scribe + lab summaries</li>
                     <li>✓ Priority support</li>
                 </ul>
-                <a href="{{ route('signup') }}" class="mt-6 block text-center rounded-lg bg-white text-brand-700 font-semibold py-3 hover:bg-teal-50">Start trial — ₹1,999</a>
+                <a href="{{ route('onboarding.signup') }}" class="mt-6 block text-center rounded-lg bg-white text-brand-700 font-semibold py-3 hover:bg-teal-50">Start trial — ₹1,999</a>
             </div>
         </div>
     </div>
@@ -249,7 +249,7 @@
             <ul class="space-y-1">
                 <li><a href="#faq" class="hover:text-white">FAQ</a></li>
                 <li><a href="{{ route('login') }}" class="hover:text-white">Sign in</a></li>
-                <li><a href="{{ route('signup') }}" class="hover:text-white">Start trial</a></li>
+                <li><a href="{{ route('onboarding.signup') }}" class="hover:text-white">Start trial</a></li>
             </ul>
         </div>
         <div>
